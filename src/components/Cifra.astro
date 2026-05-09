@@ -10,21 +10,22 @@ interface Props {
 
 const { rawCifra } = Astro.props;
 
-// Load pre-generated chord SVGs (empty object if not built yet)
 const jsonPath = resolve('./src/lib/chord-svgs.generated.json');
 const chordSvgs: Record<string, string> = existsSync(jsonPath)
   ? (JSON.parse(readFileSync(jsonPath, 'utf-8')) as Record<string, string>)
   : {};
 
-// Parse chord sheet
 const parser = new ChordsOverWordsParser();
 const song = parser.parse(rawCifra.trim());
 
-// Build a renderable structure: array of lines, each line is array of {chord, lyric}
 type Pair = { chord: string; lyric: string };
-type SongLine = { pairs: Pair[]; isChordOnly: boolean };
+type ParsedLine =
+  | { kind: 'section'; label: string }
+  | { kind: 'empty' }
+  | { kind: 'content'; pairs: Pair[] };
 
-const renderedLines: SongLine[] = song.lines.map(line => {
+// Classify each line
+const parsedLines: ParsedLine[] = song.lines.map(line => {
   const pairs: Pair[] = line.items
     .filter((item): item is typeof item & { chords: string; lyrics: string } => 'chords' in item)
     .map(item => ({
@@ -32,29 +33,135 @@ const renderedLines: SongLine[] = song.lines.map(line => {
       lyric: typeof item.lyrics === 'string' ? item.lyrics : String(item.lyrics ?? ''),
     }));
 
-  const hasChords = pairs.some(p => p.chord.trim() !== '');
-  const hasLyrics = pairs.some(p => p.lyric.trim() !== '');
-  return { pairs, isChordOnly: hasChords && !hasLyrics };
+  const hasContent = pairs.some(p => p.chord.trim() !== '' || p.lyric.trim() !== '');
+  if (!hasContent) return { kind: 'empty' };
+
+  // Section marker: single pair, no chord, lyric is [Something]
+  if (
+    pairs.length === 1 &&
+    pairs[0] !== undefined &&
+    pairs[0].chord.trim() === '' &&
+    /^\[.+\]$/.test(pairs[0].lyric.trim())
+  ) {
+    return { kind: 'section', label: pairs[0].lyric.trim().slice(1, -1) };
+  }
+
+  return { kind: 'content', pairs };
 });
+
+// Group content lines into stanzas
+type Block =
+  | { kind: 'section'; label: string }
+  | { kind: 'stanza'; lines: Pair[][] }
+  | { kind: 'gap' };
+
+const blocks: Block[] = [];
+let currentStanza: Pair[][] = [];
+
+function flushStanza() {
+  if (currentStanza.length > 0) {
+    blocks.push({ kind: 'stanza', lines: [...currentStanza] });
+    currentStanza = [];
+  }
+}
+
+for (const line of parsedLines) {
+  if (line.kind === 'content') {
+    currentStanza.push(line.pairs);
+  } else {
+    flushStanza();
+    if (line.kind === 'section') blocks.push({ kind: 'section', label: line.label });
+    else if (blocks.length > 0 && blocks[blocks.length - 1]?.kind !== 'gap') {
+      blocks.push({ kind: 'gap' });
+    }
+  }
+}
+flushStanza();
 ---
 
-<div
-  class="cifra-container font-mono text-sm leading-relaxed overflow-x-auto"
-  style="column-count: var(--colunas, 1); column-gap: 2rem;"
->
-  {renderedLines.map(line => (
-    <div class="cifra-line break-inside-avoid" style="display: flex; flex-wrap: wrap; white-space: pre;">
-      {line.pairs.map(pair => (
-        <span style="display: inline-block; vertical-align: top;">
-          <span style="display: block; min-height: 1.4em;">
-            {pair.chord.trim()
-              ? <AcordeTooltip chord={pair.chord.trim()} svg={chordSvgs[pair.chord.trim()]} />
-              : <span style="white-space: pre;">{pair.chord}</span>
-            }
-          </span>
-          <span style="display: block; white-space: pre;">{pair.lyric}</span>
-        </span>
-      ))}
-    </div>
-  ))}
+<div class="cifra-container" style="column-count: var(--colunas, 1); column-gap: 2.5rem;">
+  {blocks.map(block => {
+    if (block.kind === 'section') {
+      return (
+        <div class="section-header">{block.label}</div>
+      );
+    }
+    if (block.kind === 'gap') {
+      return <div class="stanza-gap" />;
+    }
+    // stanza
+    return (
+      <div class="stanza">
+        {block.lines.map(pairs => (
+          <div class="cifra-line">
+            {pairs.map(pair => (
+              <span class="pair">
+                <span class="chord-span">
+                  {pair.chord.trim()
+                    ? <AcordeTooltip chord={pair.chord.trim()} svg={chordSvgs[pair.chord.trim()]} />
+                    : pair.chord
+                  }
+                </span>
+                <span class="lyric-span">{pair.lyric}</span>
+              </span>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  })}
 </div>
+
+<style>
+  .cifra-container {
+    font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+    font-size: 0.8rem;
+    line-height: 1.15;
+    overflow-x: auto;
+  }
+
+  .section-header {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #9ca3af;
+    margin-top: 0.5rem;
+    margin-bottom: 0.2rem;
+    break-after: avoid;
+  }
+
+  .stanza-gap {
+    height: 0.85rem;
+  }
+
+  .stanza {
+    break-inside: avoid;
+    display: block;
+  }
+
+  .cifra-line {
+    display: block;
+    white-space: nowrap;
+    break-inside: avoid;
+    margin-bottom: 0;
+  }
+
+  .pair {
+    display: inline-block;
+    vertical-align: bottom;
+  }
+
+  .chord-span {
+    display: block;
+    min-height: 1.15em;
+    line-height: 1.15;
+    white-space: pre;
+  }
+
+  .lyric-span {
+    display: block;
+    white-space: pre;
+    line-height: 1.35;
+  }
+</style>
