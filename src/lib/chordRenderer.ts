@@ -57,9 +57,9 @@ export function renderChordSVG(name: string, pos: ChordPosition): string {
     }
   }
 
-  // Barres
+  // Barres (fret values are 1-indexed relative to diagram top)
   for (const barre of pos.barres) {
-    const row = barre - pos.baseFret;
+    const row = barre - 1;
     const y = GT + row * FS + FS / 2;
     const barreStrings = pos.frets
       .map((f, i) => ({ f, i }))
@@ -71,11 +71,11 @@ export function renderChordSVG(name: string, pos: ChordPosition): string {
     }
   }
 
-  // Finger dots
+  // Finger dots (fret values are 1-indexed relative to diagram top)
   for (let s = 0; s < STRINGS; s++) {
     const fret = pos.frets[s];
     if (fret > 0 && !pos.barres.includes(fret)) {
-      const row = fret - pos.baseFret;
+      const row = fret - 1;
       const x = GL + s * SS;
       const y = GT + row * FS + FS / 2;
       parts.push(`<circle cx="${x}" cy="${y}" r="${DR}" fill="#111"/>`);

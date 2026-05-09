@@ -93,7 +93,7 @@ export async function buildChordCache(projectRoot: string): Promise<void> {
   }
 
   // Load chords-db
-  const dbPath = resolve(projectRoot, 'node_modules/@tombatossals/chords-db/src/guitar.json');
+  const dbPath = resolve(projectRoot, 'node_modules/@tombatossals/chords-db/lib/guitar.json');
   if (!existsSync(dbPath)) {
     console.warn('[chordCache] chords-db not found, skipping SVG generation');
     writeFileSync(outPath, '{}', 'utf-8');

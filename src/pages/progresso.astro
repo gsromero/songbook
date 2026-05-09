@@ -1,0 +1,115 @@
+---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import StatusBadge from '../components/StatusBadge.astro';
+
+const musicas = await getCollection('musicas');
+const total = musicas.length;
+
+const niveis = ['N1', 'N2', 'N3', 'N4', 'N5'] as const;
+const statuses = ['toca_bem', 'toca_parcial', 'wishlist', 'nao_classificado'] as const;
+
+const porNivel = Object.fromEntries(
+  niveis.map(n => [n, musicas.filter(m => m.data.nivel === n).length])
+) as Record<string, number>;
+
+const porStatus = Object.fromEntries(
+  statuses.map(s => [s, musicas.filter(m => m.data.status === s).length])
+) as Record<string, number>;
+
+const statusLabels: Record<string, string> = {
+  toca_bem: '🟢 Toco bem',
+  toca_parcial: '🟡 Parcial',
+  wishlist: '🔴 Wishlist',
+  nao_classificado: '⚪ Sem status',
+};
+
+const nivelColors: Record<string, string> = {
+  N1: 'bg-green-400',
+  N2: 'bg-blue-400',
+  N3: 'bg-yellow-400',
+  N4: 'bg-orange-400',
+  N5: 'bg-red-400',
+};
+---
+
+<Base title="Progresso">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">Progresso</h1>
+    <p class="text-sm text-gray-500 mt-1">{total} músicas no total</p>
+  </div>
+
+  <div class="grid gap-6 md:grid-cols-2">
+
+    <!-- Por nível -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6">
+      <h2 class="font-semibold text-gray-700 mb-4">Por nível</h2>
+      <div class="space-y-3">
+        {niveis.map(n => {
+          const count = porNivel[n] ?? 0;
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          return (
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="font-mono font-bold text-gray-700">{n}</span>
+                <span class="text-gray-500">{count} <span class="text-gray-300">/ {total}</span></span>
+              </div>
+              <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  class:list={['h-full rounded-full transition-all', nivelColors[n] ?? 'bg-gray-400']}
+                  style={`width: ${pct}%`}
+                  role="progressbar"
+                  aria-valuenow={count}
+                  aria-valuemax={total}
+                  aria-label={`${n}: ${count} músicas`}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    <!-- Por status -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6">
+      <h2 class="font-semibold text-gray-700 mb-4">Por status</h2>
+      <div class="space-y-3">
+        {statuses.map(s => {
+          const count = porStatus[s] ?? 0;
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          return (
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-700">{statusLabels[s]}</span>
+                <span class="text-gray-500">{count}</span>
+              </div>
+              <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  class="h-full rounded-full bg-gray-400 transition-all"
+                  style={`width: ${pct}%`}
+                  role="progressbar"
+                  aria-valuenow={count}
+                  aria-valuemax={total}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+
+    <!-- Resumo -->
+    <div class="bg-white border border-gray-200 rounded-xl p-6 md:col-span-2">
+      <h2 class="font-semibold text-gray-700 mb-4">Visão geral</h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {statuses.map(s => (
+          <div class="text-center">
+            <div class="text-3xl font-bold text-gray-900">{porStatus[s] ?? 0}</div>
+            <div class="text-xs text-gray-500 mt-1">{statusLabels[s]}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+  </div>
+</Base>

@@ -1,17 +1,66 @@
 ---
+import { getCollection } from 'astro:content';
+import Base from '../layouts/Base.astro';
+import StatusBadge from '../components/StatusBadge.astro';
+import Filtros from '../components/Filtros.astro';
 
+const musicas = await getCollection('musicas');
+musicas.sort((a, b) => {
+  const nivelOrder = ['N1', 'N2', 'N3', 'N4', 'N5'];
+  const nd = (nivelOrder.indexOf(a.data.nivel) ?? 0) - (nivelOrder.indexOf(b.data.nivel) ?? 0);
+  if (nd !== 0) return nd;
+  return a.data.artista.localeCompare(b.data.artista, 'pt');
+});
+
+const artistas = [...new Set(musicas.map(m => m.data.artista))];
+const tags = [...new Set(musicas.flatMap(m => m.data.tags ?? []))];
+
+const base = import.meta.env.BASE_URL;
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Base title="Repertório">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900">Repertório</h1>
+    <p class="text-sm text-gray-500 mt-1">{musicas.length} músicas</p>
+  </div>
+
+  <Filtros artistas={artistas} tags={tags} />
+
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    {musicas.map(m => (
+      <a
+        href={`${base}musica/${m.data.slug}`}
+        class="block bg-white border border-gray-200 rounded-lg p-4 hover:border-blue-400 hover:shadow-sm transition-all group"
+        data-musica-card
+        data-titulo={m.data.titulo}
+        data-artista={m.data.artista}
+        data-nivel={m.data.nivel}
+        data-status={m.data.status}
+        data-tags={(m.data.tags ?? []).join(',')}
+      >
+        <div class="flex items-start justify-between gap-2 mb-2">
+          <span class="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+            {m.data.nivel}
+          </span>
+          <StatusBadge status={m.data.status} />
+        </div>
+
+        <h2 class="font-semibold text-gray-900 group-hover:text-blue-700 text-sm leading-tight mb-1 line-clamp-2">
+          {m.data.titulo}
+        </h2>
+        <p class="text-xs text-gray-500 mb-3">{m.data.artista}</p>
+
+        <div class="flex flex-wrap gap-1 items-center">
+          {m.data.tom && (
+            <span class="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-mono">
+              {m.data.tom}
+            </span>
+          )}
+          {(m.data.tags ?? []).slice(0, 3).map(tag => (
+            <span class="text-xs text-gray-400">#{tag}</span>
+          ))}
+        </div>
+      </a>
+    ))}
+  </div>
+</Base>

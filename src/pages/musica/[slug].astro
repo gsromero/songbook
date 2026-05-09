@@ -1,0 +1,94 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../../layouts/Base.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+import Cifra from '../../components/Cifra.astro';
+import ColunaToggle from '../../components/ColunaToggle.astro';
+
+export async function getStaticPaths() {
+  const musicas = await getCollection('musicas');
+  return musicas.map(entry => ({
+    params: { slug: entry.data.slug },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { titulo, artista, nivel, status, tom, tags, links, observacoes } = entry.data;
+
+const rawBody = entry.body ?? '';
+const hasContent = rawBody.trim().length > 0 && !rawBody.trim().startsWith('<!--');
+
+const base = import.meta.env.BASE_URL;
+---
+
+<Base title={titulo} description={`${titulo} — ${artista}`}>
+  <div class="mb-2">
+    <a href={base} class="text-xs text-gray-400 hover:text-gray-700">← Repertório</a>
+  </div>
+
+  <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded">
+            {nivel}
+          </span>
+          <StatusBadge status={status} />
+          {tom && (
+            <span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-mono font-bold">
+              Tom: {tom}
+            </span>
+          )}
+        </div>
+        <h1 class="text-xl font-bold text-gray-900">{titulo}</h1>
+        <p class="text-gray-500 mt-0.5">{artista}</p>
+      </div>
+
+      <ColunaToggle targetId="cifra-container" />
+    </div>
+
+    {(tags ?? []).length > 0 && (
+      <div class="flex flex-wrap gap-2 mt-4">
+        {(tags ?? []).map(tag => (
+          <span class="text-xs text-gray-400 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded-full">
+            #{tag}
+          </span>
+        ))}
+      </div>
+    )}
+
+    {observacoes && (
+      <p class="mt-4 text-sm text-gray-500 italic border-l-2 border-gray-200 pl-3">
+        {observacoes}
+      </p>
+    )}
+
+    {(links?.cifraclub || links?.youtube) && (
+      <div class="flex gap-3 mt-4">
+        {links?.cifraclub && (
+          <a href={links.cifraclub} target="_blank" rel="noopener" class="text-xs text-blue-600 hover:underline">
+            Cifra Club ↗
+          </a>
+        )}
+        {links?.youtube && (
+          <a href={links.youtube} target="_blank" rel="noopener" class="text-xs text-red-600 hover:underline">
+            YouTube ↗
+          </a>
+        )}
+      </div>
+    )}
+  </div>
+
+  <div id="cifra-container" class="bg-white border border-gray-200 rounded-xl p-6">
+    {hasContent
+      ? <Cifra rawCifra={rawBody} />
+      : (
+        <p class="text-sm text-gray-400 italic text-center py-8">
+          Cifra ainda não adicionada.<br />
+          <span class="text-xs">Edite <code class="bg-gray-100 px-1 rounded">src/content/musicas/{entry.data.slug}.md</code> para preencher.</span>
+        </p>
+      )
+    }
+  </div>
+</Base>

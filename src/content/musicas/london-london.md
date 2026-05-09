@@ -12,4 +12,20 @@ links:
 observacoes: "Boa pra estudar arpejo P-I-M-A"
 ---
 
-<!-- cifra a preencher -->
+    A                  F#m
+London, London, hello London London
+    D                 E
+Estou chegando, caminhando sozinho
+    A                  F#m
+London, London, posso confessar
+       D               E
+Que estou saudoso e não sei mais
+
+       A               D
+Me dê minha língua, meu país
+      Bm                  E
+Me dê a loucura com que vim aqui
+       A              D
+Me dê meus erros, minha história
+      Bm              E        A
+Me dê tudo aquilo que perderei

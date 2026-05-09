@@ -1,0 +1,68 @@
+---
+import { getCollection, render } from 'astro:content';
+import Base from '../layouts/Base.astro';
+
+const fases = await getCollection('plano');
+fases.sort((a, b) => a.data.fase - b.data.fase);
+
+const rendered = await Promise.all(
+  fases.map(async f => ({ data: f.data, id: f.id, html: await render(f) }))
+);
+---
+
+<Base title="Plano de Estudos">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">Plano de Estudos</h1>
+    <p class="text-sm text-gray-500 mt-1">Marque seu progresso — salvo automaticamente</p>
+  </div>
+
+  <div class="space-y-6">
+    {rendered.map(({ data, id, html }) => {
+      const { Content } = html;
+      return (
+        <div
+          class="bg-white border border-gray-200 rounded-xl p-6 prose prose-sm max-w-none"
+          data-fase-id={id}
+        >
+          <div class="flex items-center gap-3 mb-4 not-prose">
+            <span class="text-xs font-mono font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              Fase {data.fase}
+            </span>
+            {data.duracao && (
+              <span class="text-xs text-gray-400">{data.duracao}</span>
+            )}
+          </div>
+          <Content />
+        </div>
+      );
+    })}
+  </div>
+</Base>
+
+<script>
+  const PREFIX = 'gm:plano:';
+
+  // Remove `disabled` from checkboxes and restore saved state
+  document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((cb, i) => {
+    const key = `${PREFIX}${i}`;
+    cb.disabled = false;
+    cb.checked = localStorage.getItem(key) === '1';
+    cb.addEventListener('change', () => {
+      localStorage.setItem(key, cb.checked ? '1' : '0');
+    });
+  });
+</script>
+
+<style>
+  /* Style checkboxes in the prose content */
+  :global(.prose input[type="checkbox"]) {
+    accent-color: #2563eb;
+    margin-right: 0.4em;
+    cursor: pointer;
+  }
+
+  :global(.prose li:has(input[type="checkbox"])) {
+    list-style: none;
+    margin-left: -1.5em;
+  }
+</style>
