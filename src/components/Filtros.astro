@@ -1,0 +1,194 @@
+---
+interface Props {
+  artistas: string[];
+  tags: string[];
+}
+const { artistas, tags } = Astro.props;
+
+const niveis = ['N1', 'N2', 'N3', 'N4', 'N5'];
+const statuses = [
+  { value: 'toca_bem', label: '🟢 Toco bem' },
+  { value: 'toca_parcial', label: '🟡 Parcial' },
+  { value: 'wishlist', label: '🔴 Wishlist' },
+  { value: 'nao_classificado', label: '⚪ Sem status' },
+];
+---
+
+<div class="filtros flex flex-wrap gap-3 items-end mb-6">
+  <div>
+    <label class="block text-xs text-gray-500 mb-1 font-medium">Busca</label>
+    <input
+      id="filtro-busca"
+      type="search"
+      placeholder="Título ou artista..."
+      class="border border-gray-300 rounded px-3 py-1.5 text-sm w-48 focus:outline-none focus:ring-2 focus:ring-blue-400"
+    />
+  </div>
+
+  <div>
+    <label class="block text-xs text-gray-500 mb-1 font-medium">Nível</label>
+    <div class="flex gap-1">
+      {niveis.map(n => (
+        <button
+          class="filtro-nivel border border-gray-300 rounded px-2 py-1 text-xs font-mono text-gray-600 hover:border-blue-400 aria-pressed:bg-blue-600 aria-pressed:text-white aria-pressed:border-blue-600 transition-colors"
+          data-nivel={n}
+          aria-pressed="false"
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <div>
+    <label class="block text-xs text-gray-500 mb-1 font-medium">Status</label>
+    <div class="flex flex-wrap gap-1">
+      {statuses.map(s => (
+        <button
+          class="filtro-status border border-gray-300 rounded px-2 py-1 text-xs text-gray-600 hover:border-blue-400 aria-pressed:bg-blue-600 aria-pressed:text-white aria-pressed:border-blue-600 transition-colors"
+          data-status={s.value}
+          aria-pressed="false"
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <div>
+    <label class="block text-xs text-gray-500 mb-1 font-medium">Artista</label>
+    <select
+      id="filtro-artista"
+      class="border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400"
+    >
+      <option value="">Todos</option>
+      {artistas.sort().map(a => <option value={a}>{a}</option>)}
+    </select>
+  </div>
+
+  <button
+    id="filtro-limpar"
+    class="text-xs text-gray-400 hover:text-gray-700 underline mt-4"
+  >
+    Limpar filtros
+  </button>
+
+  <span id="filtro-count" class="text-xs text-gray-400 mt-4"></span>
+</div>
+
+<script>
+  type FilterState = {
+    busca: string;
+    niveis: Set<string>;
+    statuses: Set<string>;
+    artista: string;
+  };
+
+  const state: FilterState = {
+    busca: '',
+    niveis: new Set(),
+    statuses: new Set(),
+    artista: '',
+  };
+
+  function readUrl() {
+    const params = new URLSearchParams(location.search);
+    state.busca = params.get('q') ?? '';
+    state.niveis = new Set(params.getAll('nivel'));
+    state.statuses = new Set(params.getAll('status'));
+    state.artista = params.get('artista') ?? '';
+  }
+
+  function pushUrl() {
+    const params = new URLSearchParams();
+    if (state.busca) params.set('q', state.busca);
+    state.niveis.forEach(n => params.append('nivel', n));
+    state.statuses.forEach(s => params.append('status', s));
+    if (state.artista) params.set('artista', state.artista);
+    const qs = params.toString();
+    history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+  }
+
+  function applyFilters() {
+    const cards = document.querySelectorAll<HTMLElement>('[data-musica-card]');
+    let visible = 0;
+    cards.forEach(card => {
+      const titulo = (card.dataset['titulo'] ?? '').toLowerCase();
+      const artista = (card.dataset['artista'] ?? '').toLowerCase();
+      const nivel = card.dataset['nivel'] ?? '';
+      const status = card.dataset['status'] ?? '';
+
+      const matchBusca = !state.busca ||
+        titulo.includes(state.busca.toLowerCase()) ||
+        artista.includes(state.busca.toLowerCase());
+      const matchNivel = state.niveis.size === 0 || state.niveis.has(nivel);
+      const matchStatus = state.statuses.size === 0 || state.statuses.has(status);
+      const matchArtista = !state.artista || artista === state.artista.toLowerCase();
+
+      const show = matchBusca && matchNivel && matchStatus && matchArtista;
+      card.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+
+    const countEl = document.getElementById('filtro-count');
+    if (countEl) countEl.textContent = `${visible} música${visible !== 1 ? 's' : ''}`;
+    pushUrl();
+    syncUi();
+  }
+
+  function syncUi() {
+    const busca = document.getElementById('filtro-busca') as HTMLInputElement | null;
+    if (busca) busca.value = state.busca;
+
+    document.querySelectorAll<HTMLElement>('.filtro-nivel').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(state.niveis.has(btn.dataset['nivel'] ?? '')));
+    });
+    document.querySelectorAll<HTMLElement>('.filtro-status').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(state.statuses.has(btn.dataset['status'] ?? '')));
+    });
+
+    const artista = document.getElementById('filtro-artista') as HTMLSelectElement | null;
+    if (artista) artista.value = state.artista;
+  }
+
+  // Wire up controls
+  document.getElementById('filtro-busca')?.addEventListener('input', e => {
+    state.busca = (e.target as HTMLInputElement).value;
+    applyFilters();
+  });
+
+  document.querySelectorAll<HTMLElement>('.filtro-nivel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const n = btn.dataset['nivel'] ?? '';
+      if (state.niveis.has(n)) state.niveis.delete(n);
+      else state.niveis.add(n);
+      applyFilters();
+    });
+  });
+
+  document.querySelectorAll<HTMLElement>('.filtro-status').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const s = btn.dataset['status'] ?? '';
+      if (state.statuses.has(s)) state.statuses.delete(s);
+      else state.statuses.add(s);
+      applyFilters();
+    });
+  });
+
+  document.getElementById('filtro-artista')?.addEventListener('change', e => {
+    state.artista = (e.target as HTMLSelectElement).value;
+    applyFilters();
+  });
+
+  document.getElementById('filtro-limpar')?.addEventListener('click', () => {
+    state.busca = '';
+    state.niveis.clear();
+    state.statuses.clear();
+    state.artista = '';
+    applyFilters();
+  });
+
+  // Init from URL
+  readUrl();
+  applyFilters();
+</script>

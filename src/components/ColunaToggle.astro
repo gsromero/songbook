@@ -1,0 +1,50 @@
+---
+interface Props {
+  targetId: string;
+}
+const { targetId } = Astro.props;
+---
+
+<div class="flex items-center gap-1" role="group" aria-label="Número de colunas">
+  {[1, 2, 3].map(n => (
+    <button
+      class="coluna-btn w-8 h-8 rounded border border-gray-300 text-sm font-mono text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors aria-pressed:bg-blue-600 aria-pressed:text-white aria-pressed:border-blue-600"
+      data-cols={n}
+      data-target={targetId}
+      aria-pressed="false"
+      title={`${n} coluna${n > 1 ? 's' : ''}`}
+    >
+      {n}
+    </button>
+  ))}
+</div>
+
+<script>
+  const STORAGE_KEY = 'gm:colunas';
+
+  function apply(n: number) {
+    document.querySelectorAll<HTMLElement>('.coluna-btn').forEach(btn => {
+      const pressed = Number(btn.dataset['cols']) === n;
+      btn.setAttribute('aria-pressed', String(pressed));
+    });
+
+    document.querySelectorAll<HTMLElement>('[data-cols-target]').forEach(el => {
+      el.style.setProperty('--colunas', String(n));
+    });
+
+    // Also target any cifra-container on the page
+    document.querySelectorAll<HTMLElement>('.cifra-container').forEach(el => {
+      el.style.setProperty('--colunas', String(n));
+    });
+
+    localStorage.setItem(STORAGE_KEY, String(n));
+  }
+
+  // Restore persisted value
+  const stored = Number(localStorage.getItem(STORAGE_KEY) ?? '1');
+  apply(stored);
+
+  document.querySelectorAll<HTMLElement>('.coluna-btn').forEach(btn => {
+    btn.addEventListener('click', () => apply(Number(btn.dataset['cols'])));
+  });
+</script>

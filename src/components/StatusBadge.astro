@@ -1,0 +1,26 @@
+---
+interface Props {
+  status: 'toca_bem' | 'toca_parcial' | 'wishlist' | 'nao_classificado';
+  class?: string;
+}
+
+const { status, class: cls } = Astro.props;
+
+const config = {
+  toca_bem:        { emoji: '🟢', label: 'Toco bem',     color: 'text-green-700 bg-green-50 border-green-200' },
+  toca_parcial:    { emoji: '🟡', label: 'Parcial',      color: 'text-yellow-700 bg-yellow-50 border-yellow-200' },
+  wishlist:        { emoji: '🔴', label: 'Wishlist',     color: 'text-red-700 bg-red-50 border-red-200' },
+  nao_classificado:{ emoji: '⚪', label: 'Sem status',   color: 'text-gray-500 bg-gray-50 border-gray-200' },
+} as const;
+
+const { emoji, label, color } = config[status];
+---
+
+<span
+  class:list={['inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border', color, cls]}
+  aria-label={label}
+  title={label}
+>
+  <span aria-hidden="true">{emoji}</span>
+  <span>{label}</span>
+</span>

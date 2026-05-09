@@ -1,0 +1,83 @@
+---
+interface Props {
+  chord: string;
+  svg?: string;
+}
+
+const { chord, svg } = Astro.props;
+const hasDiagram = Boolean(svg);
+---
+
+<span class="chord-wrap" data-has-diagram={hasDiagram}>
+  <span class="chord-name" tabindex={hasDiagram ? 0 : undefined} role={hasDiagram ? 'button' : undefined} aria-label={hasDiagram ? `Diagrama de ${chord}` : chord}>
+    {chord}
+  </span>
+  {hasDiagram && (
+    <span class="chord-tooltip" role="tooltip" aria-hidden="true" set:html={svg} />
+  )}
+</span>
+
+<style>
+  .chord-wrap {
+    display: inline-block;
+    position: relative;
+  }
+
+  .chord-name {
+    color: #c0392b;
+    font-weight: 700;
+    cursor: default;
+    white-space: pre;
+  }
+
+  [data-has-diagram="true"] .chord-name {
+    cursor: pointer;
+    text-decoration: underline dotted;
+  }
+
+  .chord-tooltip {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    background: white;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    pointer-events: none;
+  }
+
+  .chord-wrap:hover .chord-tooltip,
+  .chord-wrap:focus-within .chord-tooltip {
+    display: block;
+  }
+
+  /* Mobile: tap to toggle via JS */
+  .chord-tooltip.open {
+    display: block;
+  }
+</style>
+
+<script>
+  // Mobile tap support
+  document.querySelectorAll<HTMLElement>('[data-has-diagram="true"] .chord-name').forEach(el => {
+    el.addEventListener('click', (e) => {
+      const tooltip = el.nextElementSibling as HTMLElement | null;
+      if (!tooltip) return;
+      const isOpen = tooltip.classList.toggle('open');
+      // Close others
+      if (isOpen) {
+        document.querySelectorAll<HTMLElement>('.chord-tooltip.open').forEach(t => {
+          if (t !== tooltip) t.classList.remove('open');
+        });
+      }
+      e.stopPropagation();
+    });
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll<HTMLElement>('.chord-tooltip.open').forEach(t => t.classList.remove('open'));
+  });
+</script>

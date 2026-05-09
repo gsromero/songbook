@@ -1,0 +1,60 @@
+---
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
+import { ChordsOverWordsParser } from 'chordsheetjs';
+import AcordeTooltip from './AcordeTooltip.astro';
+
+interface Props {
+  rawCifra: string;
+}
+
+const { rawCifra } = Astro.props;
+
+// Load pre-generated chord SVGs (empty object if not built yet)
+const jsonPath = resolve('./src/lib/chord-svgs.generated.json');
+const chordSvgs: Record<string, string> = existsSync(jsonPath)
+  ? (JSON.parse(readFileSync(jsonPath, 'utf-8')) as Record<string, string>)
+  : {};
+
+// Parse chord sheet
+const parser = new ChordsOverWordsParser();
+const song = parser.parse(rawCifra.trim());
+
+// Build a renderable structure: array of lines, each line is array of {chord, lyric}
+type Pair = { chord: string; lyric: string };
+type SongLine = { pairs: Pair[]; isChordOnly: boolean };
+
+const renderedLines: SongLine[] = song.lines.map(line => {
+  const pairs: Pair[] = line.items
+    .filter((item): item is typeof item & { chords: string; lyrics: string } => 'chords' in item)
+    .map(item => ({
+      chord: typeof item.chords === 'string' ? item.chords : String(item.chords ?? ''),
+      lyric: typeof item.lyrics === 'string' ? item.lyrics : String(item.lyrics ?? ''),
+    }));
+
+  const hasChords = pairs.some(p => p.chord.trim() !== '');
+  const hasLyrics = pairs.some(p => p.lyric.trim() !== '');
+  return { pairs, isChordOnly: hasChords && !hasLyrics };
+});
+---
+
+<div
+  class="cifra-container font-mono text-sm leading-relaxed overflow-x-auto"
+  style="column-count: var(--colunas, 1); column-gap: 2rem;"
+>
+  {renderedLines.map(line => (
+    <div class="cifra-line break-inside-avoid" style="display: flex; flex-wrap: wrap; white-space: pre;">
+      {line.pairs.map(pair => (
+        <span style="display: inline-block; vertical-align: top;">
+          <span style="display: block; min-height: 1.4em;">
+            {pair.chord.trim()
+              ? <AcordeTooltip chord={pair.chord.trim()} svg={chordSvgs[pair.chord.trim()]} />
+              : <span style="white-space: pre;">{pair.chord}</span>
+            }
+          </span>
+          <span style="display: block; white-space: pre;">{pair.lyric}</span>
+        </span>
+      ))}
+    </div>
+  ))}
+</div>
