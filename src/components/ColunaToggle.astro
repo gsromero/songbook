@@ -5,8 +5,8 @@ interface Props {
 const { targetId } = Astro.props;
 ---
 
-<div class="ctrl-group" role="group" aria-label="Número de colunas">
-  <span class="ctrl-label">Colunas</span>
+<div class="ctrl-group" role="group" data-i18n-aria="column_aria" aria-label="Number of columns">
+  <span class="ctrl-label" data-i18n="columns">Columns</span>
   <div class="col-btns">
     {[1, 2, 3, 4].map(n => (
       <button
@@ -15,7 +15,7 @@ const { targetId } = Astro.props;
         data-target={targetId}
         aria-pressed="false"
         type="button"
-        title={`${n} coluna${n > 1 ? 's' : ''}`}
+        title={`${n} column${n > 1 ? 's' : ''}`}
       >
         {n}
       </button>
@@ -35,7 +35,17 @@ const { targetId } = Astro.props;
 </style>
 
 <script>
+  import { t } from '../lib/i18n.js';
+
   const STORAGE_KEY = 'gm:colunas';
+
+  function updateTitles() {
+    document.querySelectorAll<HTMLElement>('.col-btn').forEach(btn => {
+      const n = Number(btn.dataset['cols']);
+      const word = t('columns').toLowerCase();
+      btn.title = `${n} ${n > 1 ? word : word.replace(/s$/, '')}`;
+    });
+  }
 
   function apply(n: number) {
     document.querySelectorAll<HTMLElement>('.col-btn').forEach(btn => {
@@ -47,8 +57,11 @@ const { targetId } = Astro.props;
 
   const stored = Number(localStorage.getItem(STORAGE_KEY) ?? '1');
   apply(stored);
+  updateTitles();
 
   document.querySelectorAll<HTMLElement>('.col-btn').forEach(btn => {
     btn.addEventListener('click', () => apply(Number(btn.dataset['cols'])));
   });
+
+  document.addEventListener('gm:lang-change', () => updateTitles());
 </script>

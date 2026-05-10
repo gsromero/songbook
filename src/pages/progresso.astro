@@ -24,15 +24,15 @@ const statusLabels: Record<string, string> = {
 };
 ---
 
-<Base title="Progresso">
+<Base title="Progress">
   <div class="page-head">
-    <h1 class="page-title">Progresso</h1>
-    <p class="page-sub">{total} músicas no total</p>
+    <h1 class="page-title" data-i18n="progress_title">Progress</h1>
+    <p class="page-sub progress-total" data-total={total}>{total} songs total</p>
   </div>
 
   <div class="grid-2">
     <section class="paper-card panel">
-      <h2 class="panel-title">Por nível</h2>
+      <h2 class="panel-title" data-i18n="by_level">By level</h2>
       <div class="bars">
         {niveis.map(n => {
           const count = porNivel[n] ?? 0;
@@ -53,7 +53,7 @@ const statusLabels: Record<string, string> = {
     </section>
 
     <section class="paper-card panel">
-      <h2 class="panel-title">Por status</h2>
+      <h2 class="panel-title" data-i18n="by_status">By status</h2>
       <div class="bars">
         {statuses.map(s => {
           const count = porStatus[s] ?? 0;
@@ -74,7 +74,7 @@ const statusLabels: Record<string, string> = {
     </section>
 
     <section class="paper-card panel span-2">
-      <h2 class="panel-title">Visão geral</h2>
+      <h2 class="panel-title" data-i18n="overview">Overview</h2>
       <div class="overview">
         {statuses.map(s => (
           <div class="overview-cell">
@@ -183,3 +183,19 @@ const statusLabels: Record<string, string> = {
     color: var(--ink-soft);
   }
 </style>
+
+<script>
+  import { getLang } from '../lib/i18n.js';
+
+  function updateTotal() {
+    const el = document.querySelector<HTMLElement>('.progress-total');
+    if (!el) return;
+    const n = Number(el.dataset['total'] ?? 0);
+    const lang = getLang();
+    const word = lang === 'pt' ? (n !== 1 ? 'músicas no total' : 'música no total') : (n !== 1 ? 'songs total' : 'song total');
+    el.textContent = `${n} ${word}`;
+  }
+
+  updateTotal();
+  document.addEventListener('gm:lang-change', updateTotal);
+</script>

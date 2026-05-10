@@ -25,7 +25,7 @@ const base = import.meta.env.BASE_URL;
 
 <Base title={titulo} description={`${titulo} — ${artista}`} full>
   <div class="back-link">
-    <a href={base}>← Repertório</a>
+    <a href={base} data-i18n="back_repertoire">← Repertoire</a>
   </div>
 
   <header class="song-head">
@@ -38,7 +38,7 @@ const base = import.meta.env.BASE_URL;
       {tom && (
         <>
           <span class="meta-sep">·</span>
-          <span class="meta-item">Tocando em: <strong id="current-key-display">{tom}</strong></span>
+          <span class="meta-item"><span data-i18n="playing_in">Playing in:</span> <strong id="current-key-display">{tom}</strong></span>
         </>
       )}
     </div>
@@ -70,11 +70,11 @@ const base = import.meta.env.BASE_URL;
   <div class="controls song-controls">
     {tom && (
       <div class="ctrl-group">
-        <span class="ctrl-label">Tom</span>
-        <button class="btn" id="transpose-down" type="button" aria-label="Transpor para baixo">−</button>
+        <span class="ctrl-label" data-i18n="key_label">Key</span>
+        <button class="btn" id="transpose-down" type="button" data-i18n-aria="transpose_down" aria-label="Transpose down">−</button>
         <span class="transpose-display" id="transpose-display">±0</span>
-        <button class="btn" id="transpose-up" type="button" aria-label="Transpor para cima">+</button>
-        <button class="btn btn-ghost" id="transpose-reset" type="button">Reset</button>
+        <button class="btn" id="transpose-up" type="button" data-i18n-aria="transpose_up" aria-label="Transpose up">+</button>
+        <button class="btn btn-ghost" id="transpose-reset" type="button" data-i18n="reset">Reset</button>
       </div>
     )}
     <ColunaToggle targetId="cifra-columns" />
@@ -84,7 +84,7 @@ const base = import.meta.env.BASE_URL;
     ? <Cifra rawCifra={rawBody} tom={tom} tomOriginal={tomOriginal} slug={slug} />
     : (
       <div class="paper-card empty-cifra">
-        <p>Cifra ainda não adicionada.</p>
+        <p data-i18n="no_cifra">Chord sheet not yet added.</p>
         <p class="hint">
           Edite <code>src/content/musicas/{slug}.md</code> para preencher.
         </p>

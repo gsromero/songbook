@@ -10,10 +10,10 @@ const rendered = await Promise.all(
 );
 ---
 
-<Base title="Plano de Estudos">
+<Base title="Study Plan">
   <div class="page-head">
-    <h1 class="page-title">Plano de Estudos</h1>
-    <p class="page-sub">Marque seu progresso — salvo automaticamente</p>
+    <h1 class="page-title" data-i18n="plan_title">Study Plan</h1>
+    <p class="page-sub" data-i18n="plan_subtitle">Track your progress — saved automatically</p>
   </div>
 
   <div class="fases">
@@ -22,7 +22,7 @@ const rendered = await Promise.all(
       return (
         <article class="paper-card fase prose-cifra" data-fase-id={id}>
           <header class="fase-head">
-            <span class="meta-badge">Fase {data.fase}</span>
+            <span class="meta-badge phase-label" data-fase={data.fase}>Phase {data.fase}</span>
             {data.duracao && <span class="fase-dur">{data.duracao}</span>}
           </header>
           <div class="fase-body">
@@ -107,6 +107,8 @@ const rendered = await Promise.all(
 </style>
 
 <script>
+  import { t, getLang } from '../lib/i18n.js';
+
   const PREFIX = 'gm:plano:';
 
   document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]').forEach((cb, i) => {
@@ -117,4 +119,14 @@ const rendered = await Promise.all(
       localStorage.setItem(key, cb.checked ? '1' : '0');
     });
   });
+
+  function updatePhaseLabels() {
+    document.querySelectorAll<HTMLElement>('.phase-label').forEach(el => {
+      const n = el.dataset['fase'];
+      el.textContent = `${t('phase')} ${n}`;
+    });
+  }
+
+  updatePhaseLabels();
+  document.addEventListener('gm:lang-change', updatePhaseLabels);
 </script>

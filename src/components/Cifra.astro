@@ -227,6 +227,8 @@ const dataPayload = JSON.stringify({ sections, chordSvgsAll, tom, tomOriginal, s
   const dataScript = document.getElementById('cifra-data');
   if (!root || !dataScript) throw new Error('cifra: missing root');
 
+  import { t, getLang } from '../lib/i18n.js';
+
   const payload: Payload = JSON.parse(dataScript.textContent || '{}');
   const chordSvgsAll = payload.chordSvgsAll || {};
 
@@ -334,7 +336,7 @@ const dataPayload = JSON.stringify({ sections, chordSvgsAll, tom, tomOriginal, s
     const name = chordEl.dataset['chord'] || '';
     tipName.textContent = name;
     const svg = chordSvgsAll[name];
-    tipDiagram.innerHTML = svg || '<div style="font-size:0.75rem;color:var(--ink-soft);font-style:italic;padding:0.5rem;">sem diagrama</div>';
+    tipDiagram.innerHTML = svg || `<div style="font-size:0.75rem;color:var(--ink-soft);font-style:italic;padding:0.5rem;">${t('no_diagram')}</div>`;
     tooltip.classList.add('visible');
     tooltip.setAttribute('aria-hidden', 'false');
   }
@@ -389,18 +391,20 @@ const dataPayload = JSON.stringify({ sections, chordSvgsAll, tom, tomOriginal, s
     }
     if (!unique.length) { section.remove(); return; }
     section.innerHTML = `
-      <h2 class="acordes-titulo">Acordes utilizados</h2>
+      <h2 class="acordes-titulo">${t('chords_used')}</h2>
       <div class="acordes-grid">
         ${unique.map(c => `
           <div class="chord-card">
             <div class="chord-card-name">${c}</div>
             ${chordSvgsAll[c]
               ? `<div class="chord-card-svg">${chordSvgsAll[c]}</div>`
-              : `<div class="chord-card-no-svg">forma livre</div>`}
+              : `<div class="chord-card-no-svg">${t('free_form')}</div>`}
           </div>`).join('')}
       </div>`;
   }
   renderAcordesSection();
+
+  document.addEventListener('gm:lang-change', () => renderAcordesSection());
 </script>
 
 <style>

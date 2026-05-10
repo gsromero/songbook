@@ -7,26 +7,27 @@ const { artistas } = Astro.props;
 
 const niveis = ['N1', 'N2', 'N3', 'N4', 'N5'];
 const statuses = [
-  { value: 'toca_bem', label: '🟢 Toco bem' },
-  { value: 'toca_parcial', label: '🟡 Parcial' },
-  { value: 'wishlist', label: '🔴 Wishlist' },
-  { value: 'nao_classificado', label: '⚪ Sem status' },
+  { value: 'toca_bem',         i18nKey: 'status_filter_plays_well', label: '🟢 Plays well' },
+  { value: 'toca_parcial',     i18nKey: 'status_filter_partial',    label: '🟡 Partial' },
+  { value: 'wishlist',         i18nKey: 'status_filter_wishlist',   label: '🔴 Wishlist' },
+  { value: 'nao_classificado', i18nKey: 'status_filter_no_status',  label: '⚪ No status' },
 ];
 ---
 
 <div class="controls filtros">
   <div class="ctrl-group">
-    <span class="ctrl-label">Busca</span>
+    <span class="ctrl-label" data-i18n="filter_search">Search</span>
     <input
       id="filtro-busca"
       type="search"
-      placeholder="Título ou artista…"
+      placeholder="Title or artist…"
+      data-i18n-placeholder="filter_search_placeholder"
       class="input filtro-busca-input"
     />
   </div>
 
   <div class="ctrl-group">
-    <span class="ctrl-label">Nível</span>
+    <span class="ctrl-label" data-i18n="filter_level">Level</span>
     <div class="btn-row">
       {niveis.map(n => (
         <button class="btn filtro-nivel" data-nivel={n} aria-pressed="false" type="button">{n}</button>
@@ -35,61 +36,40 @@ const statuses = [
   </div>
 
   <div class="ctrl-group">
-    <span class="ctrl-label">Status</span>
+    <span class="ctrl-label" data-i18n="filter_status">Status</span>
     <div class="btn-row">
       {statuses.map(s => (
-        <button class="btn filtro-status" data-status={s.value} aria-pressed="false" type="button">{s.label}</button>
+        <button class="btn filtro-status" data-status={s.value} aria-pressed="false" type="button" data-i18n={s.i18nKey}>{s.label}</button>
       ))}
     </div>
   </div>
 
   <div class="ctrl-group">
-    <span class="ctrl-label">Artista</span>
+    <span class="ctrl-label" data-i18n="filter_artist">Artist</span>
     <select id="filtro-artista" class="input">
-      <option value="">Todos</option>
+      <option value="" data-i18n="filter_all">All</option>
       {artistas.sort((a, b) => a.localeCompare(b, 'pt')).map(a => <option value={a}>{a}</option>)}
     </select>
   </div>
 
-  <button id="filtro-limpar" class="btn btn-ghost" type="button">Limpar</button>
+  <button id="filtro-limpar" class="btn btn-ghost" type="button" data-i18n="filter_clear">Clear</button>
 
   <span id="filtro-count" class="ctrl-label filtro-count"></span>
 </div>
 
 <style>
-  .filtros {
-    margin-bottom: 1.5rem;
-  }
-  .btn-row {
-    display: flex;
-    gap: 2px;
-    flex-wrap: wrap;
-  }
-  .filtro-busca-input {
-    width: 14rem;
-  }
-  .btn-ghost {
-    border-color: transparent;
-    background: transparent;
-    color: var(--ink-soft);
-  }
-  .btn-ghost:hover {
-    color: var(--accent);
-    background: transparent;
-    border-color: var(--paper-line);
-  }
-  .filtro-count {
-    margin-left: auto;
-    text-transform: none;
-    letter-spacing: 0;
-    font-style: italic;
-  }
-  @media (max-width: 700px) {
-    .filtro-busca-input { width: 100%; }
-  }
+  .filtros { margin-bottom: 1.5rem; }
+  .btn-row { display: flex; gap: 2px; flex-wrap: wrap; }
+  .filtro-busca-input { width: 14rem; }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--ink-soft); }
+  .btn-ghost:hover { color: var(--accent); background: transparent; border-color: var(--paper-line); }
+  .filtro-count { margin-left: auto; text-transform: none; letter-spacing: 0; font-style: italic; }
+  @media (max-width: 700px) { .filtro-busca-input { width: 100%; } }
 </style>
 
 <script>
+  import { t, getLang } from '../lib/i18n.js';
+
   type FilterState = {
     busca: string;
     niveis: Set<string>;
@@ -97,12 +77,7 @@ const statuses = [
     artista: string;
   };
 
-  const state: FilterState = {
-    busca: '',
-    niveis: new Set(),
-    statuses: new Set(),
-    artista: '',
-  };
+  const state: FilterState = { busca: '', niveis: new Set(), statuses: new Set(), artista: '' };
 
   function readUrl() {
     const params = new URLSearchParams(location.search);
@@ -122,6 +97,14 @@ const statuses = [
     history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
   }
 
+  function updateCount(visible: number) {
+    const countEl = document.getElementById('filtro-count');
+    if (!countEl) return;
+    const lang = getLang();
+    const word = lang === 'pt' ? (visible !== 1 ? 'músicas' : 'música') : (visible !== 1 ? 'songs' : 'song');
+    countEl.textContent = `${visible} ${word}`;
+  }
+
   function applyFilters() {
     const cards = document.querySelectorAll<HTMLElement>('[data-musica-card]');
     let visible = 0;
@@ -130,21 +113,15 @@ const statuses = [
       const artista = (card.dataset['artista'] ?? '').toLowerCase();
       const nivel = card.dataset['nivel'] ?? '';
       const status = card.dataset['status'] ?? '';
-
-      const matchBusca = !state.busca ||
-        titulo.includes(state.busca.toLowerCase()) ||
-        artista.includes(state.busca.toLowerCase());
+      const matchBusca = !state.busca || titulo.includes(state.busca.toLowerCase()) || artista.includes(state.busca.toLowerCase());
       const matchNivel = state.niveis.size === 0 || state.niveis.has(nivel);
       const matchStatus = state.statuses.size === 0 || state.statuses.has(status);
       const matchArtista = !state.artista || artista === state.artista.toLowerCase();
-
       const show = matchBusca && matchNivel && matchStatus && matchArtista;
       card.style.display = show ? '' : 'none';
       if (show) visible++;
     });
-
-    const countEl = document.getElementById('filtro-count');
-    if (countEl) countEl.textContent = `${visible} música${visible !== 1 ? 's' : ''}`;
+    updateCount(visible);
     pushUrl();
     syncUi();
   }
@@ -166,37 +143,29 @@ const statuses = [
     state.busca = (e.target as HTMLInputElement).value;
     applyFilters();
   });
-
   document.querySelectorAll<HTMLElement>('.filtro-nivel').forEach(btn => {
     btn.addEventListener('click', () => {
       const n = btn.dataset['nivel'] ?? '';
-      if (state.niveis.has(n)) state.niveis.delete(n);
-      else state.niveis.add(n);
+      if (state.niveis.has(n)) state.niveis.delete(n); else state.niveis.add(n);
       applyFilters();
     });
   });
-
   document.querySelectorAll<HTMLElement>('.filtro-status').forEach(btn => {
     btn.addEventListener('click', () => {
       const s = btn.dataset['status'] ?? '';
-      if (state.statuses.has(s)) state.statuses.delete(s);
-      else state.statuses.add(s);
+      if (state.statuses.has(s)) state.statuses.delete(s); else state.statuses.add(s);
       applyFilters();
     });
   });
-
   document.getElementById('filtro-artista')?.addEventListener('change', e => {
     state.artista = (e.target as HTMLSelectElement).value;
     applyFilters();
   });
-
   document.getElementById('filtro-limpar')?.addEventListener('click', () => {
-    state.busca = '';
-    state.niveis.clear();
-    state.statuses.clear();
-    state.artista = '';
+    state.busca = ''; state.niveis.clear(); state.statuses.clear(); state.artista = '';
     applyFilters();
   });
+  document.addEventListener('gm:lang-change', () => applyFilters());
 
   readUrl();
   applyFilters();

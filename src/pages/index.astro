@@ -16,12 +16,13 @@ const artistas = [...new Set(musicas.map(m => m.data.artista))];
 const tags = [...new Set(musicas.flatMap(m => m.data.tags ?? []))];
 
 const base = import.meta.env.BASE_URL;
+const total = musicas.length;
 ---
 
-<Base title="Repertório">
+<Base title="Repertoire">
   <div class="page-head">
-    <h1 class="page-title">Repertório</h1>
-    <p class="page-sub">{musicas.length} músicas</p>
+    <h1 class="page-title" data-i18n="repertoire">Repertoire</h1>
+    <p class="page-sub songs-count" data-total={total}>{total} songs</p>
   </div>
 
   <Filtros artistas={artistas} tags={tags} />
@@ -143,3 +144,19 @@ const base = import.meta.env.BASE_URL;
     opacity: 0.7;
   }
 </style>
+
+<script>
+  import { getLang } from '../lib/i18n.js';
+
+  function updateSongsCount() {
+    const el = document.querySelector<HTMLElement>('.songs-count');
+    if (!el) return;
+    const n = Number(el.dataset['total'] ?? 0);
+    const lang = getLang();
+    const word = lang === 'pt' ? (n !== 1 ? 'músicas' : 'música') : (n !== 1 ? 'songs' : 'song');
+    el.textContent = `${n} ${word}`;
+  }
+
+  updateSongsCount();
+  document.addEventListener('gm:lang-change', updateSongsCount);
+</script>
