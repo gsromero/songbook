@@ -1,18 +1,69 @@
 ---
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
+import { renderChordSVG, type ChordPosition } from '../lib/chordRenderer.js';
 
 interface Props {
   rawCifra: string;
+  tom?: string;
+  tomOriginal?: string;
+  slug?: string;
 }
 
-const { rawCifra } = Astro.props;
+const { rawCifra, tom = '', tomOriginal = '', slug = '' } = Astro.props;
 
-const jsonPath = resolve('./src/lib/chord-svgs.generated.json');
-const chordSvgs: Record<string, string> = existsSync(jsonPath)
-  ? (JSON.parse(readFileSync(jsonPath, 'utf-8')) as Record<string, string>)
-  : {};
+// ── Chord DB ──────────────────────────────────────────────────────────────────
+const dbPath = resolve('./node_modules/@tombatossals/chords-db/lib/guitar.json');
+interface DbEntry { key: string; suffix: string; positions: ChordPosition[] }
+interface GuitarDb { chords: Record<string, DbEntry[]> }
+const guitarDb: GuitarDb | null = existsSync(dbPath)
+  ? (JSON.parse(readFileSync(dbPath, 'utf-8')) as GuitarDb)
+  : null;
 
+const ROOT_MAP: Record<string, string> = {
+  C:'C','C#':'Csharp',Db:'Csharp',D:'D','D#':'Eb',Eb:'Eb',E:'E',
+  F:'F','F#':'Fsharp',Gb:'Fsharp',G:'G','G#':'Ab',Ab:'Ab',
+  A:'A','A#':'Bb',Bb:'Bb',B:'B',
+};
+const SUFFIX_MAP: Record<string, string> = {
+  '':'major','m':'minor','7':'7','m7':'m7','maj7':'maj7','M7':'maj7',
+  'dim':'dim','°':'dim','º':'dim','aug':'aug','sus2':'sus2','sus4':'sus4',
+  'm7b5':'m7b5','add9':'add9','9':'9','6':'6','m6':'m6','5':'5',
+};
+
+function svgFromDb(name: string): string | undefined {
+  if (!guitarDb) return undefined;
+  const m = name.match(/^([A-G][b#]?)(.*)$/);
+  if (!m) return undefined;
+  const dbKey = ROOT_MAP[m[1] ?? ''];
+  if (!dbKey) return undefined;
+  const group = guitarDb.chords[dbKey];
+  if (!group) return undefined;
+  const suffix = SUFFIX_MAP[m[2] ?? ''] ?? (m[2] ?? '');
+  const entry = group.find(g => g.suffix === suffix);
+  if (!entry?.positions?.length || !entry.positions[0]) return undefined;
+  return renderChordSVG(name, entry.positions[0]);
+}
+
+// ── Transpose helpers ─────────────────────────────────────────────────────────
+const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const FLAT_TO_SHARP: Record<string,string> = {Bb:'A#',Db:'C#',Eb:'D#',Gb:'F#',Ab:'G#'};
+
+function transposeNote(note: string, n: number): string {
+  const base = FLAT_TO_SHARP[note] ?? note;
+  const idx = NOTES.indexOf(base);
+  if (idx === -1) return note;
+  return NOTES[((idx + n) % 12 + 12) % 12] ?? note;
+}
+
+function transposeChordName(chord: string, n: number): string {
+  if (n === 0) return chord;
+  const m = chord.match(/^([A-G][b#]?)(.*)$/);
+  if (!m) return chord;
+  return transposeNote(m[1] ?? '', n) + (m[2] ?? '');
+}
+
+// ── Parse cifra ───────────────────────────────────────────────────────────────
 const CHORD_TOKEN = /^[A-G][b#]?(?:maj|min|m|dim|aug|sus|add|°|º|ø)?\d*(?:[b#]\d+)?(?:\([^)]+\))?(?:\/[A-G][b#]?)?$/;
 const CHORD_FIND = /\b[A-G][b#]?(?:maj|min|m|dim|aug|sus|add|°|º|ø)?\d*(?:[b#]\d+)?(?:\([^)]+\))?(?:\/[A-G][b#]?)?\b/g;
 
@@ -28,7 +79,7 @@ function classifyLine(line: string): 'empty' | 'section' | 'chord' | 'lyric' {
   if (!trimmed) return 'empty';
   if (/^\[.+\]$/.test(trimmed)) return 'section';
   const tokens = trimmed.split(/\s+/);
-  if (tokens.length === 0) return 'empty';
+  if (!tokens.length) return 'empty';
   const chordCount = tokens.filter(t => CHORD_TOKEN.test(t)).length;
   return chordCount / tokens.length >= 0.6 ? 'chord' : 'lyric';
 }
@@ -38,9 +89,7 @@ function extractPositions(line: string): ChordPos[] {
   let m: RegExpExecArray | null;
   CHORD_FIND.lastIndex = 0;
   while ((m = CHORD_FIND.exec(line)) !== null) {
-    if (CHORD_TOKEN.test(m[0])) {
-      out.push({ c: m[0], col: m.index });
-    }
+    if (CHORD_TOKEN.test(m[0])) out.push({ c: m[0], col: m.index });
   }
   return out;
 }
@@ -51,17 +100,10 @@ let current: Section | null = null;
 let pending: ChordPos[] | null = null;
 
 function ensureSection() {
-  if (!current) {
-    current = { header: '', lines: [] };
-    sections.push(current);
-  }
+  if (!current) { current = { header: '', lines: [] }; sections.push(current); }
 }
 function flushPending() {
-  if (pending) {
-    ensureSection();
-    current!.lines.push({ type: 'chords-only', chords: pending });
-    pending = null;
-  }
+  if (pending) { ensureSection(); current!.lines.push({ type: 'chords-only', chords: pending }); pending = null; }
 }
 
 for (const line of rawLines) {
@@ -87,6 +129,26 @@ for (const line of rawLines) {
 }
 flushPending();
 
+// ── Build SVGs for all transpositions ─────────────────────────────────────────
+const uniqueChords = new Set<string>();
+for (const sec of sections) {
+  for (const line of sec.lines) {
+    if ('chords' in line) for (const { c } of line.chords) uniqueChords.add(c);
+  }
+}
+
+const chordSvgsAll: Record<string, string> = {};
+for (const chord of uniqueChords) {
+  for (let offset = -6; offset <= 6; offset++) {
+    const t = transposeChordName(chord, offset);
+    if (!chordSvgsAll[t]) {
+      const svg = svgFromDb(t);
+      if (svg) chordSvgsAll[t] = svg;
+    }
+  }
+}
+
+// ── HTML rendering ─────────────────────────────────────────────────────────────
 function escHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
@@ -96,7 +158,7 @@ function renderChordLineHTML(chords: ChordPos[]): string {
   for (const { c, col: target } of chords) {
     while (col < target) { html += ' '; col++; }
     const safe = escHtml(c);
-    html += `<span class="chord" data-chord="${safe}">${safe}</span>`;
+    html += `<span class="chord" data-chord="${safe}" data-orig-chord="${safe}">${safe}</span>`;
     col += c.length;
   }
   return html;
@@ -107,14 +169,14 @@ function renderCifraLinePairs(chords: ChordPos[], lyric: string): string {
   for (let i = 0; i < chords.length; i++) {
     const { c, col: start } = chords[i]!;
     const end = chords[i + 1]?.col ?? lyric.length;
-    const lyricSlice = lyric.slice(start, Math.min(end, lyric.length));
+    const slice = lyric.slice(start, Math.min(end, lyric.length));
     const safe = escHtml(c);
-    html += `<span class="cifra-pair"><span class="chord" data-chord="${safe}">${safe}</span><span class="lyric-slice">${escHtml(lyricSlice)}</span></span>`;
+    html += `<span class="cifra-pair"><span class="chord" data-chord="${safe}" data-orig-chord="${safe}">${safe}</span><span class="lyric-slice">${escHtml(slice)}</span></span>`;
   }
   return html;
 }
 
-const dataPayload = JSON.stringify({ sections, chordSvgs });
+const dataPayload = JSON.stringify({ sections, chordSvgsAll, tom, tomOriginal, slug });
 ---
 
 <div class="cifra-wrap">
@@ -125,9 +187,7 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
           {sec.header && <div class="cifra-header">{sec.header}</div>}
           {sec.lines.map(line => {
             if (line.type === 'cifra') {
-              return (
-                <div class="cifra-line has-pairs" set:html={renderCifraLinePairs(line.chords, line.lyric)} />
-              );
+              return <div class="cifra-line has-pairs" set:html={renderCifraLinePairs(line.chords, line.lyric)} />;
             }
             if (line.type === 'chords-only') {
               return (
@@ -155,19 +215,23 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
 <section id="acordes-section" class="acordes-section"></section>
 
 <script>
-  type ChordPos = { c: string; col: number };
-  type Section = { header: string; lines: any[] };
-  type Payload = { sections: Section[]; chordSvgs: Record<string, string> };
+  type Payload = {
+    sections: any[];
+    chordSvgsAll: Record<string, string>;
+    tom: string;
+    tomOriginal: string;
+    slug: string;
+  };
 
   const root = document.getElementById('cifra-columns');
   const dataScript = document.getElementById('cifra-data');
   if (!root || !dataScript) throw new Error('cifra: missing root');
 
   const payload: Payload = JSON.parse(dataScript.textContent || '{}');
-  const chordSvgs = payload.chordSvgs || {};
+  const chordSvgsAll = payload.chordSvgsAll || {};
 
-  // Capture initial section blocks (server-rendered)
-  let sectionBlocks: HTMLElement[] = Array.from(root.querySelectorAll<HTMLElement>('.cifra-section-block'));
+  // ── Section blocks & columns ───────────────────────────────────────────────
+  let sectionBlocks = Array.from(root.querySelectorAll<HTMLElement>('.cifra-section-block'));
 
   function sectionWeight(el: HTMLElement): number {
     return el.querySelectorAll('.cifra-line').length + 3;
@@ -181,10 +245,7 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
     const cols: HTMLElement[][] = Array.from({ length: n }, () => []);
     let col = 0, acc = 0;
     sectionBlocks.forEach((sec, i) => {
-      if (col < n - 1 && acc > 0 && acc + weights[i]! / 2 > target) {
-        col++;
-        acc = 0;
-      }
+      if (col < n - 1 && acc > 0 && acc + weights[i]! / 2 > target) { col++; acc = 0; }
       cols[col]!.push(sec);
       acc += weights[i]!;
     });
@@ -194,11 +255,9 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
   function applyColumns(n: number) {
     if (!root) return;
     root.style.setProperty('--num-cols', String(n));
-    const groups = distribute(n);
-    // Clear root, but keep the section blocks alive
     root.innerHTML = '';
-    groups.forEach(group => {
-      if (group.length === 0) return;
+    distribute(n).forEach(group => {
+      if (!group.length) return;
       const col = document.createElement('div');
       col.className = 'cifra-column';
       group.forEach(s => col.appendChild(s));
@@ -206,16 +265,63 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
     });
   }
 
-  // Listen to column change events from ColunaToggle
-  document.addEventListener('gm:cols-change', ((e: CustomEvent<number>) => {
-    applyColumns(e.detail);
+  document.addEventListener('gm:cols-change', ((e: CustomEvent<number>) => applyColumns(e.detail)) as EventListener);
+  applyColumns(Number(localStorage.getItem('gm:colunas') ?? '1'));
+
+  // ── Transpose ──────────────────────────────────────────────────────────────
+  const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const FLAT_TO_SHARP: Record<string,string> = {Bb:'A#',Db:'C#',Eb:'D#',Gb:'F#',Ab:'G#'};
+
+  function transposeNote(note: string, n: number): string {
+    const base = FLAT_TO_SHARP[note] ?? note;
+    const idx = NOTES.indexOf(base);
+    if (idx === -1) return note;
+    return NOTES[((idx + n) % 12 + 12) % 12] ?? note;
+  }
+
+  function transposeChordName(chord: string, n: number): string {
+    if (n === 0) return chord;
+    const m = chord.match(/^([A-G][b#]?)(.*)$/);
+    if (!m) return chord;
+    return transposeNote(m[1] ?? '', n) + (m[2] ?? '');
+  }
+
+  function transposeKeyDisplay(baseKey: string, n: number): string {
+    return transposeNote(baseKey, n);
+  }
+
+  const STORAGE_KEY_T = `gm:transpose:${payload.slug}`;
+  let transposeOffset = Number(localStorage.getItem(STORAGE_KEY_T) ?? '0');
+
+  function applyTranspose(offset: number) {
+    transposeOffset = offset;
+    localStorage.setItem(STORAGE_KEY_T, String(offset));
+
+    // Update all chord spans
+    document.querySelectorAll<HTMLElement>('.chord[data-orig-chord]').forEach(el => {
+      const orig = el.dataset['origChord'] ?? '';
+      const newName = transposeChordName(orig, offset);
+      el.textContent = newName;
+      el.dataset['chord'] = newName;
+    });
+
+    // Update "Accordes utilizados" section
+    renderAcordesSection();
+
+    // Notify UI
+    document.dispatchEvent(new CustomEvent('gm:transpose-changed', {
+      detail: { offset, currentKey: transposeKeyDisplay(payload.tom, offset) }
+    }));
+  }
+
+  document.addEventListener('gm:transpose', ((e: CustomEvent<number>) => {
+    applyTranspose(e.detail);
   }) as EventListener);
 
-  // Apply initial column setting from localStorage
-  const initialCols = Number(localStorage.getItem('gm:colunas') ?? '1');
-  if (initialCols > 1) applyColumns(initialCols);
+  // Apply initial transpose if stored
+  if (transposeOffset !== 0) applyTranspose(transposeOffset);
 
-  // Tooltip — mover para body para evitar stacking context de backdrop-filter em ancestrais
+  // ── Tooltip ────────────────────────────────────────────────────────────────
   const tooltip = document.getElementById('chord-tooltip');
   if (tooltip) document.body.appendChild(tooltip);
   const tipName = document.getElementById('tooltip-name');
@@ -224,16 +330,11 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
 
   function showTooltip(chordEl: HTMLElement) {
     if (!tooltip || !tipName || !tipDiagram) return;
-    if (hideTimer !== null) {
-      clearTimeout(hideTimer);
-      hideTimer = null;
-    }
+    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
     const name = chordEl.dataset['chord'] || '';
     tipName.textContent = name;
-    const svg = chordSvgs[name];
-    tipDiagram.innerHTML = svg
-      ? svg
-      : '<div style="font-size:0.75rem;color:var(--ink-soft);font-style:italic;padding:0.5rem;">sem diagrama</div>';
+    const svg = chordSvgsAll[name];
+    tipDiagram.innerHTML = svg || '<div style="font-size:0.75rem;color:var(--ink-soft);font-style:italic;padding:0.5rem;">sem diagrama</div>';
     tooltip.classList.add('visible');
     tooltip.setAttribute('aria-hidden', 'false');
   }
@@ -258,7 +359,19 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
     }, 80);
   }
 
-  // Seção "Acordes utilizados"
+  document.addEventListener('mouseover', e => {
+    const chord = (e.target as HTMLElement).closest<HTMLElement>('.chord');
+    if (chord) { showTooltip(chord); positionTooltip(e.clientX, e.clientY); }
+  });
+  document.addEventListener('mousemove', e => {
+    if ((e.target as HTMLElement).closest('.chord')) positionTooltip(e.clientX, e.clientY);
+  });
+  document.addEventListener('mouseout', e => {
+    const related = e.relatedTarget as HTMLElement | null;
+    if ((e.target as HTMLElement).closest('.chord') && (!related || !related.closest('.chord'))) hideTooltipSoon();
+  });
+
+  // ── Acordes utilizados ─────────────────────────────────────────────────────
   function renderAcordesSection() {
     const section = document.getElementById('acordes-section');
     if (!section) return;
@@ -268,54 +381,31 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
       for (const line of sec.lines as any[]) {
         if (line.chords) {
           for (const chord of line.chords as Array<{ c: string }>) {
-            if (!seen.has(chord.c)) { seen.add(chord.c); unique.push(chord.c); }
+            const name = transposeChordName(chord.c, transposeOffset);
+            if (!seen.has(name)) { seen.add(name); unique.push(name); }
           }
         }
       }
     }
-    if (unique.length === 0) { section.remove(); return; }
+    if (!unique.length) { section.remove(); return; }
     section.innerHTML = `
       <h2 class="acordes-titulo">Acordes utilizados</h2>
       <div class="acordes-grid">
         ${unique.map(c => `
           <div class="chord-card">
             <div class="chord-card-name">${c}</div>
-            ${chordSvgs[c]
-              ? `<div class="chord-card-svg">${chordSvgs[c]}</div>`
+            ${chordSvgsAll[c]
+              ? `<div class="chord-card-svg">${chordSvgsAll[c]}</div>`
               : `<div class="chord-card-no-svg">forma livre</div>`}
-          </div>
-        `).join('')}
+          </div>`).join('')}
       </div>`;
   }
   renderAcordesSection();
-
-  document.addEventListener('mouseover', (e) => {
-    const target = e.target as HTMLElement;
-    const chord = target.closest<HTMLElement>('.chord');
-    if (chord) {
-      showTooltip(chord);
-      positionTooltip(e.clientX, e.clientY);
-    }
-  });
-  document.addEventListener('mousemove', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('.chord')) positionTooltip(e.clientX, e.clientY);
-  });
-  document.addEventListener('mouseout', (e) => {
-    const target = e.target as HTMLElement;
-    const related = e.relatedTarget as HTMLElement | null;
-    if (target.closest('.chord') && (!related || !related.closest('.chord'))) {
-      hideTooltipSoon();
-    }
-  });
 </script>
 
 <style>
-  .cifra-wrap {
-    position: relative;
-  }
+  .cifra-wrap { position: relative; }
 
-  /* server-rendered: recebe data-astro-cid, scoping funciona */
   .acordes-section {
     margin-top: 2rem;
     padding: 1.2rem 1.4rem 1.6rem;

@@ -5,6 +5,7 @@ slug: "london-london"
 nivel: "N2"
 status: "toca_bem"
 tom: "A"
+tomOriginal: "D"
 tags: ["mpb", "dedilhado-simples"]
 links:
   cifraclub: ""

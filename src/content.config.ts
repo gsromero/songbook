@@ -12,6 +12,7 @@ const musicas = defineCollection({
       .enum(['toca_bem', 'toca_parcial', 'wishlist', 'nao_classificado'])
       .default('nao_classificado'),
     tom: z.string().optional(),
+    tomOriginal: z.string().optional(),
     tags: z.array(z.string()).default([]),
     links: z
       .object({
