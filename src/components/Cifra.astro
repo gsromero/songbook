@@ -102,6 +102,18 @@ function renderChordLineHTML(chords: ChordPos[]): string {
   return html;
 }
 
+function renderCifraLinePairs(chords: ChordPos[], lyric: string): string {
+  let html = '';
+  for (let i = 0; i < chords.length; i++) {
+    const { c, col: start } = chords[i]!;
+    const end = chords[i + 1]?.col ?? lyric.length;
+    const lyricSlice = lyric.slice(start, Math.min(end, lyric.length));
+    const safe = escHtml(c);
+    html += `<span class="cifra-pair"><span class="chord" data-chord="${safe}">${safe}</span><span class="lyric-slice">${escHtml(lyricSlice)}</span></span>`;
+  }
+  return html;
+}
+
 const dataPayload = JSON.stringify({ sections, chordSvgs });
 ---
 
@@ -114,10 +126,7 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
           {sec.lines.map(line => {
             if (line.type === 'cifra') {
               return (
-                <>
-                  <div class="cifra-line chord-line" set:html={renderChordLineHTML(line.chords)} />
-                  <div class="cifra-line lyric-line">{line.lyric}</div>
-                </>
+                <div class="cifra-line has-pairs" set:html={renderCifraLinePairs(line.chords, line.lyric)} />
               );
             }
             if (line.type === 'chords-only') {
@@ -306,6 +315,7 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
     position: relative;
   }
 
+  /* server-rendered: recebe data-astro-cid, scoping funciona */
   .acordes-section {
     margin-top: 2rem;
     padding: 1.2rem 1.4rem 1.6rem;
@@ -322,43 +332,5 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
     color: var(--ink-soft);
     text-align: center;
     margin-bottom: 1rem;
-  }
-
-  .acordes-grid {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1.2rem;
-  }
-
-  .chord-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.3rem;
-  }
-
-  .chord-card-name {
-    font-family: var(--font-mono);
-    font-weight: 700;
-    font-size: 1rem;
-    color: var(--chord);
-  }
-
-  .chord-card-svg svg {
-    width: 70px;
-    height: auto;
-    color: var(--ink);
-  }
-
-  .chord-card-no-svg {
-    width: 70px;
-    height: 90px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.7rem;
-    color: var(--ink-soft);
-    font-style: italic;
   }
 </style>

@@ -244,6 +244,74 @@ a {
   min-height: 0.6rem;
 }
 
+/* Linha com pares acorde+letra (permite quebra de linha juntos) */
+.cifra-line.has-pairs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  white-space: normal;
+  line-height: 1;
+}
+
+.cifra-pair {
+  display: inline-flex;
+  flex-direction: column;
+  white-space: pre;
+  vertical-align: bottom;
+}
+
+.cifra-pair .chord {
+  display: block;
+  min-height: 1.4em;
+  line-height: 1.4;
+}
+
+.cifra-pair .lyric-slice {
+  display: block;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+/* ========== Acordes utilizados (gerado por JS) ========== */
+
+.acordes-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1.2rem;
+}
+
+.chord-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.chord-card-name {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--chord);
+}
+
+.chord-card-svg svg {
+  width: 70px;
+  height: auto;
+  color: var(--ink);
+}
+
+.chord-card-no-svg {
+  width: 70px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
 .chord {
   color: var(--chord);
   font-weight: 700;

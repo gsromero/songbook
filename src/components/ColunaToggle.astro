@@ -8,7 +8,7 @@ const { targetId } = Astro.props;
 <div class="ctrl-group" role="group" aria-label="Número de colunas">
   <span class="ctrl-label">Colunas</span>
   <div class="col-btns">
-    {[1, 2, 3].map(n => (
+    {[1, 2, 3, 4].map(n => (
       <button
         class="btn col-btn"
         data-cols={n}
