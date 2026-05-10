@@ -230,12 +230,10 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
     if (!tooltip) return;
     const tw = tooltip.offsetWidth || 120;
     const th = tooltip.offsetHeight || 170;
-    const scrollY = window.scrollY;
-    const scrollX = window.scrollX;
-    let left = clientX + scrollX + 14;
-    let top = clientY + scrollY + 14;
-    if (clientX + tw + 24 > window.innerWidth) left = clientX + scrollX - tw - 14;
-    if (clientY + th + 24 > window.innerHeight) top = clientY + scrollY - th - 14;
+    let left = clientX + 14;
+    let top = clientY + 14;
+    if (clientX + tw + 24 > window.innerWidth) left = clientX - tw - 14;
+    if (clientY + th + 24 > window.innerHeight) top = clientY - th - 14;
     tooltip.style.left = left + 'px';
     tooltip.style.top = top + 'px';
   }

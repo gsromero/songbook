@@ -260,7 +260,7 @@ a {
 /* ========== Tooltip de acorde ========== */
 
 .chord-tooltip {
-  position: absolute;
+  position: fixed;
   z-index: 200;
   background: var(--diagram-bg);
   border: 1px solid var(--diagram-border);
