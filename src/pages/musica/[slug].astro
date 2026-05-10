@@ -22,7 +22,7 @@ const hasContent = rawBody.trim().length > 0 && !rawBody.trim().startsWith('<!--
 const base = import.meta.env.BASE_URL;
 ---
 
-<Base title={titulo} description={`${titulo} — ${artista}`} wide>
+<Base title={titulo} description={`${titulo} — ${artista}`} full>
   <div class="back-link">
     <a href={base}>← Repertório</a>
   </div>
@@ -100,6 +100,7 @@ const base = import.meta.env.BASE_URL;
     margin-bottom: 1.5rem;
     padding-bottom: 1.5rem;
     border-bottom: 1px solid var(--paper-line);
+    max-width: 56rem;
   }
   .song-meta {
     display: flex;

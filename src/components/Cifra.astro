@@ -143,6 +143,8 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
   <script id="cifra-data" type="application/json" set:html={dataPayload} />
 </div>
 
+<section id="acordes-section" class="acordes-section"></section>
+
 <script>
   type ChordPos = { c: string; col: number };
   type Section = { header: string; lines: any[] };
@@ -204,8 +206,9 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
   const initialCols = Number(localStorage.getItem('gm:colunas') ?? '1');
   if (initialCols > 1) applyColumns(initialCols);
 
-  // Tooltip
+  // Tooltip — mover para body para evitar stacking context de backdrop-filter em ancestrais
   const tooltip = document.getElementById('chord-tooltip');
+  if (tooltip) document.body.appendChild(tooltip);
   const tipName = document.getElementById('tooltip-name');
   const tipDiagram = document.getElementById('tooltip-diagram');
   let hideTimer: number | null = null;
@@ -246,6 +249,37 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
     }, 80);
   }
 
+  // Seção "Acordes utilizados"
+  function renderAcordesSection() {
+    const section = document.getElementById('acordes-section');
+    if (!section) return;
+    const seen = new Set<string>();
+    const unique: string[] = [];
+    for (const sec of payload.sections) {
+      for (const line of sec.lines as any[]) {
+        if (line.chords) {
+          for (const chord of line.chords as Array<{ c: string }>) {
+            if (!seen.has(chord.c)) { seen.add(chord.c); unique.push(chord.c); }
+          }
+        }
+      }
+    }
+    if (unique.length === 0) { section.remove(); return; }
+    section.innerHTML = `
+      <h2 class="acordes-titulo">Acordes utilizados</h2>
+      <div class="acordes-grid">
+        ${unique.map(c => `
+          <div class="chord-card">
+            <div class="chord-card-name">${c}</div>
+            ${chordSvgs[c]
+              ? `<div class="chord-card-svg">${chordSvgs[c]}</div>`
+              : `<div class="chord-card-no-svg">forma livre</div>`}
+          </div>
+        `).join('')}
+      </div>`;
+  }
+  renderAcordesSection();
+
   document.addEventListener('mouseover', (e) => {
     const target = e.target as HTMLElement;
     const chord = target.closest<HTMLElement>('.chord');
@@ -270,5 +304,61 @@ const dataPayload = JSON.stringify({ sections, chordSvgs });
 <style>
   .cifra-wrap {
     position: relative;
+  }
+
+  .acordes-section {
+    margin-top: 2rem;
+    padding: 1.2rem 1.4rem 1.6rem;
+    background: var(--diagram-bg);
+    border: 1px solid var(--diagram-border);
+    border-radius: 6px;
+  }
+
+  .acordes-titulo {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-weight: 500;
+    font-size: 1.1rem;
+    color: var(--ink-soft);
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .acordes-grid {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.2rem;
+  }
+
+  .chord-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  .chord-card-name {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--chord);
+  }
+
+  .chord-card-svg svg {
+    width: 70px;
+    height: auto;
+    color: var(--ink);
+  }
+
+  .chord-card-no-svg {
+    width: 70px;
+    height: 90px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: var(--ink-soft);
+    font-style: italic;
   }
 </style>
