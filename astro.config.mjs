@@ -8,8 +8,7 @@ import { join } from 'path';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
-  site: 'https://gsromero.github.io',
-  base: '/songbook/',
+  site: 'https://songbook.gsromerolab.com',
   output: 'static',
   integrations: [chordPrerender()],
   vite: {
