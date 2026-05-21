@@ -1,9 +1,9 @@
-Você vai adicionar uma nova música ao projeto Guitar Master em `d:\Git\guitar-master`.
+Você vai adicionar uma nova música ao projeto Guitar Master em `d:\Git\songbook`.
 
 ## Passos obrigatórios — siga nessa ordem exata
 
 ### 1. Ler os resources disponíveis
-Leia o arquivo `d:\Git\guitar-master\.claude\guitar-resources.md` para saber em quais sites buscar.
+Leia o arquivo `d:\Git\songbook\.claude\guitar-resources.md` para saber em quais sites buscar.
 
 ### 2. Buscar a cifra
 Use WebSearch para encontrar a cifra da música nos resources listados.
@@ -35,7 +35,7 @@ Se o tom escolhido for diferente do tom da cifra, transponha todos os acordes an
 Antes de criar qualquer arquivo, exiba o conteúdo completo do `.md` que será criado e aguarde confirmação do usuário.
 
 ### 6. Criar o arquivo
-Crie `d:\Git\guitar-master\src\content\musicas\[slug].md` com o seguinte formato:
+Crie `d:\Git\songbook\src\content\musicas\[slug].md` com o seguinte formato:
 
 ```
 ---

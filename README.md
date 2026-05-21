@@ -1,8 +1,8 @@
-# Guitar Master
+# Songbook
 
 Catálogo pessoal de repertório de violão com cifras, tracker de progresso e plano de estudos. Site estático gerado com Astro, hospedado no GitHub Pages.
 
-**[→ Abrir o site](https://gsromero.github.io/guitar-master/)**
+**[→ Abrir o site](https://gsromero.github.io/songbook/)**
 
 ## Funcionalidades
 
@@ -17,7 +17,7 @@ Catálogo pessoal de repertório de violão com cifras, tracker de progresso e p
 
 ```bash
 pnpm install
-pnpm dev        # http://localhost:4321/guitar-master/
+pnpm dev        # http://localhost:4321/songbook/
 pnpm build      # gera dist/
 pnpm preview    # previa do build
 ```

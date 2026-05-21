@@ -9,7 +9,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
   site: 'https://gsromero.github.io',
-  base: '/guitar-master/',
+  base: '/songbook/',
   output: 'static',
   integrations: [chordPrerender()],
   vite: {
