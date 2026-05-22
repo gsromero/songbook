@@ -23,12 +23,6 @@ import Base from '../../layouts/Base.astro';
       </div>
     </div>
 
-    <!-- Tom do usuário -->
-    <div class="tom-row">
-      <label for="input-meu-tom" class="tom-label">Meu tom:</label>
-      <input id="input-meu-tom" type="text" class="input input-tom" maxlength="3" placeholder="–" title="Tom que você toca" />
-      <span id="tom-saved-msg" class="tom-saved" style="display:none;">✓ salvo</span>
-    </div>
 
     <!-- Tags -->
     <div id="m-tags" class="musica-tags"></div>
@@ -47,12 +41,14 @@ import Base from '../../layouts/Base.astro';
     <!-- Controles da cifra -->
     <div class="cifra-controls">
       <div class="ctrl-group">
-        <span class="ctrl-label">Transpor</span>
+        <span class="ctrl-label">Tom</span>
         <div class="btn-row">
           <button class="btn transpose-btn" data-dir="-1" type="button">−</button>
-          <span id="transpose-display" class="transpose-display">±0</span>
+          <span id="transpose-display" class="transpose-display">–</span>
           <button class="btn transpose-btn" data-dir="+1" type="button">+</button>
           <button class="btn btn-ghost" id="btn-reset-transpose" type="button">Reset</button>
+          <button class="btn btn-salvar-tom" id="btn-salvar-tom" style="display:none;">Salvar meu tom</button>
+          <span id="tom-saved-msg" class="tom-saved" style="display:none;">✓ salvo</span>
         </div>
       </div>
       <div class="ctrl-group">
@@ -183,19 +179,40 @@ import Base from '../../layouts/Base.astro';
   function sectionHTML(sec: Section, pratica: boolean): string {
     let html = '';
     if (sec.header) html += `<div class="cifra-header">${sec.header}</div>`;
-    for (const line of sec.lines) {
-      if (line.type === 'cifra') {
-        if (pratica) {
-          html += `<div class="cifra-line chord-line">${renderChordLine(line.chords)}</div>`;
-        } else {
-          html += `<div class="cifra-line has-pairs">${renderCifraPairs(line.chords, line.lyric)}</div>`;
+
+    if (pratica) {
+      // Coletar sequência de acordes desta seção em ordem
+      const seq: string[] = [];
+      for (const line of sec.lines) {
+        if ('chords' in line) {
+          for (const { c } of line.chords) {
+            seq.push(transposeChordName(c, transposeOffset));
+          }
         }
-      } else if (line.type === 'chords-only') {
-        html += `<div class="cifra-line chord-line">${renderChordLine(line.chords)}</div><div class="cifra-line spacer"></div>`;
-      } else if (!pratica) {
-        html += `<div class="cifra-line lyric-line">${escHtml(line.lyric)}</div>`;
+      }
+      if (!seq.length) return '';
+      const cards = seq.map(chord => {
+        const svg = chordSvgs[chord] || chordSvgs[transposeChordName(chord, -transposeOffset)];
+        return `<div class="pratica-card">
+          <div class="pratica-chord-name">${escHtml(chord)}</div>
+          ${svg
+            ? `<div class="pratica-chord-svg">${svg}</div>`
+            : `<div class="pratica-chord-no-svg">—</div>`}
+        </div>`;
+      }).join('');
+      html += `<div class="pratica-seq">${cards}</div>`;
+    } else {
+      for (const line of sec.lines) {
+        if (line.type === 'cifra') {
+          html += `<div class="cifra-line has-pairs">${renderCifraPairs(line.chords, line.lyric)}</div>`;
+        } else if (line.type === 'chords-only') {
+          html += `<div class="cifra-line chord-line">${renderChordLine(line.chords)}</div><div class="cifra-line spacer"></div>`;
+        } else {
+          html += `<div class="cifra-line lyric-line">${escHtml(line.lyric)}</div>`;
+        }
       }
     }
+
     return html ? `<div class="cifra-section-block">${html}</div>` : '';
   }
 
@@ -238,7 +255,11 @@ import Base from '../../layouts/Base.astro';
     }
 
     syncColButtons();
-    applyTranspose(transposeOffset, false);
+    if (!praticaMode) {
+      applyChordSpans(transposeOffset);
+    }
+    refreshTransposeUI();
+    renderAcordesSection();
   }
 
   function syncColButtons() {
@@ -250,20 +271,54 @@ import Base from '../../layouts/Base.astro';
   // ── Transpose ─────────────────────────────────────────────────────────────────
   let transposeOffset = 0;
   let chordSvgs: Record<string,string> = {};
+  let baseTom = '';       // tom base da música (m.tom)
+  let savedUserTom = '';  // tom salvo pelo usuário (m.user_tom)
 
-  function applyTranspose(offset: number, save = true) {
-    transposeOffset = offset;
-    if (save) {
-      fetch(`/api/transpose/${slug}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ offset }) }).catch(() => {});
+  function offsetToReachKey(from: string, to: string): number {
+    const a = NOTES.indexOf(FLAT_TO_SHARP[from] ?? from);
+    const b = NOTES.indexOf(FLAT_TO_SHARP[to] ?? to);
+    if (a === -1 || b === -1) return 0;
+    return ((b - a) + 12) % 12;
+  }
+
+  function currentKey(): string {
+    if (!baseTom) return '';
+    return transposeNote(baseTom, transposeOffset);
+  }
+
+  // Atualiza display da nota e botão "Salvar meu tom" — sem efeitos colaterais
+  function refreshTransposeUI() {
+    const key = currentKey();
+    const display = document.getElementById('transpose-display');
+    if (display) display.textContent = key || (transposeOffset === 0 ? '±0' : (transposeOffset > 0 ? `+${transposeOffset}` : String(transposeOffset)));
+    const btnSalvar = document.getElementById('btn-salvar-tom') as HTMLElement | null;
+    if (btnSalvar) {
+      btnSalvar.style.display = (key && key !== savedUserTom) ? '' : 'none';
     }
+  }
+
+  // Aplica transposição nos spans de acorde do modo normal
+  function applyChordSpans(offset: number) {
     document.querySelectorAll<HTMLElement>('.chord[data-orig]').forEach(el => {
       const orig = el.dataset['orig'] ?? '';
       const name = transposeChordName(orig, offset);
       el.textContent = name;
       el.dataset['chord'] = name;
     });
-    const display = document.getElementById('transpose-display');
-    if (display) display.textContent = offset === 0 ? '±0' : (offset > 0 ? `+${offset}` : String(offset));
+  }
+
+  function applyTranspose(offset: number, save = true) {
+    transposeOffset = offset;
+    if (save) {
+      fetch(`/api/transpose/${slug}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ offset }) }).catch(() => {});
+    }
+    if (praticaMode) {
+      // Re-renderiza cards de prática com o novo offset; renderCifra NÃO chama applyTranspose em modo prática
+      renderCifra();
+      return;
+    }
+    applyChordSpans(offset);
+    refreshTransposeUI();
     renderAcordesSection();
   }
 
@@ -350,24 +405,28 @@ import Base from '../../layouts/Base.astro';
     setFavorito(!isFavorito);
   });
 
-  // ── Meu tom ───────────────────────────────────────────────────────────────────
-  let tomSaveTimer: number | null = null;
-  document.getElementById('input-meu-tom')?.addEventListener('input', e => {
-    const val = (e.target as HTMLInputElement).value.trim();
-    if (tomSaveTimer !== null) clearTimeout(tomSaveTimer);
-    tomSaveTimer = window.setTimeout(async () => {
-      if (!val.match(/^[A-G][b#]?m?$/)) return;
-      await fetch(`/api/user-tom/${slug}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ tom: val }) });
-      const msg = document.getElementById('tom-saved-msg')!;
-      msg.style.display = '';
-      setTimeout(() => { msg.style.display = 'none'; }, 2000);
-    }, 600);
+  // ── Salvar meu tom ────────────────────────────────────────────────────────────
+  document.getElementById('btn-salvar-tom')?.addEventListener('click', async () => {
+    const key = currentKey();
+    if (!key) return;
+    const btn = document.getElementById('btn-salvar-tom') as HTMLButtonElement;
+    btn.disabled = true;
+    await Promise.all([
+      fetch(`/api/user-tom/${slug}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ tom: key }) }),
+      fetch(`/api/transpose/${slug}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ offset: transposeOffset }) }),
+    ]).catch(() => {});
+    savedUserTom = key;
+    btn.style.display = 'none';
+    btn.disabled = false;
+    const msg = document.getElementById('tom-saved-msg')!;
+    msg.style.display = '';
+    setTimeout(() => { msg.style.display = 'none'; }, 2000);
   });
 
   // ── YouTube embed ─────────────────────────────────────────────────────────────
   function getYoutubeId(url: string): string | null {
     const m = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
-    return m ? m[1] : null;
+    return m ? (m[1] ?? null) : null;
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────────
@@ -379,7 +438,14 @@ import Base from '../../layouts/Base.astro';
 
       chordSvgs = m.chord_svgs || {};
       sections = parseCifra(m.cifra || '');
-      transposeOffset = m.user_transpose ?? 0;
+      baseTom = (FLAT_TO_SHARP[m.tom] ?? m.tom) || '';
+      savedUserTom = (FLAT_TO_SHARP[m.user_tom] ?? m.user_tom) || '';
+      // Calcular offset para chegar ao tom salvo do usuário; fallback para user_transpose
+      if (baseTom && savedUserTom) {
+        transposeOffset = offsetToReachKey(baseTom, savedUserTom);
+      } else {
+        transposeOffset = m.user_transpose ?? 0;
+      }
 
       // Preencher cabeçalho
       document.title = `${m.titulo} — Songbook`;
@@ -393,10 +459,6 @@ import Base from '../../layouts/Base.astro';
         tomEl.textContent = `Tom original: ${m.tom_original}`;
         tomEl.style.display = '';
       }
-
-      // Meu tom
-      const inputTom = document.getElementById('input-meu-tom') as HTMLInputElement;
-      inputTom.value = m.user_tom || m.tom || '';
 
       // Tags
       const tagsEl = document.getElementById('m-tags')!;
@@ -489,12 +551,6 @@ import Base from '../../layouts/Base.astro';
   .btn-heart:hover { opacity: 1; transform: scale(1.2); }
   .adicionado-por { font-size: 0.75rem; font-style: italic; color: var(--ink-soft); opacity: 0.6; }
 
-  .tom-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
-  .tom-label { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
-  .input-tom { width: 4rem; text-align: center; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 600; color: var(--accent); padding: 0.25rem 0.5rem; border: 1px solid var(--paper-line); border-radius: 4px; background: var(--bg); }
-  .input-tom:focus { border-color: var(--accent); outline: none; }
-  .tom-saved { font-size: 0.75rem; color: var(--accent); font-style: italic; }
-
   .musica-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
   .tag-pill { font-family: var(--font-serif); font-style: italic; font-size: 0.85rem; color: var(--ink-soft); text-decoration: none; padding: 0.15rem 0.5rem; border: 1px solid var(--paper-line); border-radius: 12px; transition: all 0.15s; }
   .tag-pill:hover { color: var(--accent); border-color: var(--accent); }
@@ -508,7 +564,40 @@ import Base from '../../layouts/Base.astro';
   .yt-embed { width: 100%; height: 100%; border: none; }
 
   .cifra-controls { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.25rem; }
-  .transpose-display { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); min-width: 2.5rem; text-align: center; padding: 0.3rem 0.5rem; }
+  .cifra-controls .btn-row { gap: 0.3rem; }
+  .transpose-display {
+    font-family: var(--font-mono);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    min-width: 2.8rem;
+    text-align: center;
+    padding: 0.28rem 0.5rem;
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+    border-radius: 3px;
+  }
+  .btn-salvar-tom { font-size: 0.8rem; padding: 0.28rem 0.6rem; color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .btn-salvar-tom:hover { background: var(--accent); color: var(--bg); }
+  .tom-saved { font-size: 0.75rem; color: var(--accent); font-style: italic; padding: 0 0.2rem; }
+
+  /* Modo Prática — flashcards */
+  .pratica-seq { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .pratica-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--diagram-bg);
+    border: 1px solid var(--diagram-border);
+    border-radius: 6px;
+    padding: 0.4rem 0.5rem 0.5rem;
+    min-width: 3.5rem;
+    transition: border-color 0.15s;
+  }
+  .pratica-card:hover { border-color: var(--accent-soft); }
+  .pratica-chord-name { font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem; color: var(--chord); margin-bottom: 0.3rem; }
+  .pratica-chord-svg :global(svg) { width: 52px; height: auto; display: block; }
+  .pratica-chord-no-svg { font-size: 0.7rem; color: var(--ink-soft); font-style: italic; height: 60px; display: flex; align-items: center; }
 
   .cifra-wrap { position: relative; }
   .acordes-section { margin-top: 2rem; padding: 1.2rem 1.4rem 1.6rem; background: var(--diagram-bg); border: 1px solid var(--diagram-border); border-radius: 6px; }
