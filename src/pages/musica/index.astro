@@ -106,8 +106,9 @@ import Base from '../../layouts/Base.astro';
   }
 
   // ── Parse cifra ───────────────────────────────────────────────────────────────
-  const CHORD_TOKEN = /^[A-G][b#]?(?:maj|min|m|dim|aug|sus|add|°|º|ø)?\d*(?:[b#]\d+)?(?:\([^)]+\))?(?:\/[A-G][b#]?)?$/;
-  const CHORD_FIND_SRC = '[A-G][b#]?(?:maj|min|m|dim|aug|sus|add|°|º|ø)?\\d*(?:[b#]\\d+)?(?:\\([^)]+\\))?(?:\\/[A-G][b#]?)?';
+  // [Mm]? depois de \d* permite sufixos como 7M (maj7), 7m (m7) usados no CifraClub
+  const CHORD_TOKEN = /^[A-G][b#]?(?:maj|min|m|dim|aug|sus|add|°|º|ø)?\d*[Mm]?(?:[b#]\d+)?(?:\([^)]+\))?(?:\/[A-G][b#]?)?$/;
+  const CHORD_FIND_SRC = '[A-G][b#]?(?:maj|min|m|dim|aug|sus|add|°|º|ø)?\\d*[Mm]?(?:[b#]\\d+)?(?:\\([^)]+\\))?(?:\\/[A-G][b#]?)?';
 
   type ChordPos = { c: string; col: number };
   type Line = { type: 'cifra'; chords: ChordPos[]; lyric: string } | { type: 'chords-only'; chords: ChordPos[] } | { type: 'lyric-only'; lyric: string };

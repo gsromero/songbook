@@ -118,7 +118,8 @@ function parseChordName(raw) {
 // ── Extract chords from cifra text ───────────────────────────────────────────
 
 function extractChordsFromCifra(cifraText) {
-  const chordPattern = /\b([A-G][b#]?(?:maj|min|m|dim|aug|sus)?[0-9]?(?:[b#][0-9])?)\b/g;
+  // [Mm]? depois de \d* reconhece 7M (maj7), 7m, etc. do CifraClub
+  const chordPattern = /\b([A-G][b#]?(?:maj|min|m|dim|aug|sus)?[0-9]*[Mm]?(?:[b#][0-9])?)\b/g;
   const chords = new Set();
 
   for (const line of cifraText.split('\n')) {
