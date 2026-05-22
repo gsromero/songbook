@@ -2,7 +2,7 @@
 import Base from '../layouts/Base.astro';
 ---
 
-<Base title="Repertório">
+<Base title="Repertório" full={true}>
   <!-- Recentes -->
   <section id="recentes-section" style="display:none; margin-bottom:1.5rem;">
     <h2 class="section-label">Tocadas recentemente</h2>
@@ -222,7 +222,7 @@ import Base from '../layouts/Base.astro';
       // Busca por acorde: "acorde: Bm"
       const acordeMatch = q.match(/^acorde:\s*(.+)$/i);
       if (acordeMatch) {
-        const acorde = acordeMatch[1].trim().toLowerCase();
+        const acorde = (acordeMatch[1] ?? '').trim().toLowerCase();
         return (m.cifra_acordes || '').toLowerCase().includes(acorde) ||
           (Array.isArray(m.tags) && false); // chord matching via API field if available
       }
