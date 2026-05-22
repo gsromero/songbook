@@ -1,57 +1,70 @@
 const cheerio = require('cheerio');
 
-const BASE_URL = 'https://www.cifraclub.com.br';
+const CC_BASE = 'https://www.cifraclub.com.br';
 const HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
   'Accept-Language': 'pt-BR,pt;q=0.9',
 };
 
+function toName(slug) {
+  return slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+}
+
+// ── Busca via Startpage (proxy do Google) ──────────────────────────────────────
+
 async function searchCifraClub(query) {
-  const url = `${BASE_URL}/busca/?q=${encodeURIComponent(query)}&tipo=cifras`;
+  const q = encodeURIComponent(`${query} cifraclub.com.br`);
+  const url = `https://www.startpage.com/sp/search?q=${q}&language=pt-BR`;
 
   const res = await fetch(url, { headers: HEADERS });
-  if (!res.ok) throw new Error(`CifraClub busca falhou: ${res.status}`);
+  if (!res.ok) throw new Error(`Startpage falhou: ${res.status}`);
 
   const html = await res.text();
-  const $ = cheerio.load(html);
+
+  // Extrair links do CifraClub no formato /artista/musica/
+  const links = [
+    ...html.matchAll(/href="(https:\/\/www\.cifraclub\.com\.br\/[a-z0-9][a-z0-9\-]+\/[a-z0-9][a-z0-9\-]+\/)"/g),
+  ]
+    .map(m => m[1])
+    .filter(l =>
+      !l.includes('/busca') &&
+      !l.includes('/estilos') &&
+      !l.includes('/blog') &&
+      !l.includes('/cadastro') &&
+      !l.includes('/login')
+    );
+
+  const seen = new Set();
   const results = [];
 
-  // Seletores da página de busca do CifraClub
-  $('article.gs-result, .gs-result, ul.results li, .search-result-item').each((i, el) => {
-    if (results.length >= 10) return false;
-    const $el = $(el);
+  for (const songUrl of links) {
+    if (seen.has(songUrl)) continue;
+    seen.add(songUrl);
 
-    // Tenta diferentes seletores para título e artista
-    const titulo = $el.find('b, .art_name, h2, .song-name').first().text().trim()
-      || $el.find('a').first().text().trim();
-    const artista = $el.find('span.sub, .artist-name, small').first().text().trim();
-    const href = $el.find('a').first().attr('href');
+    const parts = songUrl
+      .replace(`${CC_BASE}/`, '')
+      .replace(/\/$/, '')
+      .split('/');
 
-    if (titulo && href) {
-      const songUrl = href.startsWith('http') ? href : `${BASE_URL}${href}`;
-      results.push({ titulo, artista: artista || '', url: songUrl });
-    }
-  });
+    if (parts.length !== 2) continue;
 
-  // Fallback: tenta pegar links da busca do Google embutida
-  if (results.length === 0) {
-    $('a[href*="cifraclub.com.br"]').each((i, el) => {
-      if (results.length >= 10) return false;
-      const $el = $(el);
-      const href = $el.attr('href');
-      const text = $el.text().trim();
-      if (href && text && href.includes('/cifraclub.com.br/') && text.length > 3) {
-        results.push({ titulo: text, artista: '', url: href });
-      }
+    const [artistSlug, songSlug] = parts;
+    results.push({
+      titulo: toName(songSlug),
+      artista: toName(artistSlug),
+      url: songUrl,
     });
+
+    if (results.length >= 10) break;
   }
 
   return results;
 }
 
+// ── Fetch da cifra de uma URL específica ────────────────────────────────────────
+
 async function fetchCifra(cifraUrl) {
-  // Garantir URL completa
-  const url = cifraUrl.startsWith('http') ? cifraUrl : `${BASE_URL}${cifraUrl}`;
+  const url = cifraUrl.startsWith('http') ? cifraUrl : `${CC_BASE}${cifraUrl}`;
 
   const res = await fetch(url, { headers: HEADERS });
   if (!res.ok) throw new Error(`CifraClub fetch falhou: ${res.status}`);
@@ -59,51 +72,32 @@ async function fetchCifra(cifraUrl) {
   const html = await res.text();
   const $ = cheerio.load(html);
 
-  // Título e artista
-  const titulo = $('h1.t1').text().trim()
-    || $('h1').first().text().trim()
-    || '';
-  const artista = $('h2.t3 a, .artist-name a, h2 a').first().text().trim()
-    || $('h2').first().text().trim()
-    || '';
+  // Título e artista — seletores específicos do CifraClub
+  const titulo = $('h1.t1').first().text().trim() || $('h1').eq(1).text().trim();
+  const artista = $('h2.t3 a').first().text().trim() || $('h2').first().text().trim();
 
-  // Tom original
-  const tomOriginalText = $('select#cifra_tom option[selected], .tone-select option[selected], [data-original-key]')
-    .first().text().trim()
-    || $('b:contains("Tom:")').parent().text().replace('Tom:', '').trim()
-    || '';
-  const tomOriginal = tomOriginalText.match(/^[A-G][b#]?m?/)?.[0] || '';
+  // Tom original — o link "alterar o tom da cifra"
+  const tomText = $('a[title="alterar o tom da cifra"]').first().text().trim();
+  const tomOriginal = tomText.match(/^[A-G][b#]?(?:m\b)?/)?.[0] || '';
 
-  // Cifra — o conteúdo está em <pre> com classe específica
+  // Cifra: está no <pre>; acordes em <b>, tablatura em .tablatura/.cnt a remover
   let cifra = '';
-  const preEl = $('pre.cifra, #cifra_content pre, .cifra-content pre, pre').first();
+  const preEl = $('pre').first();
 
   if (preEl.length) {
-    // Extrair texto preservando quebras de linha
+    // Remover seções de tablatura
+    preEl.find('.tablatura, .cnt, .tab').each((_, el) => $(el).remove());
+    // Substituir <b>ACORDE</b> por ACORDE
+    preEl.find('b').each((_, el) => $(el).replaceWith($(el).text()));
     cifra = preEl.text().trim();
   }
 
-  // Se não encontrou cifra, tenta extrair de spans com classe de acordes
-  if (!cifra) {
-    const cifraDiv = $('#cifra_content, .cifra-content, .tab-content').first();
-    if (cifraDiv.length) {
-      // Converter HTML em texto preservando estrutura de chord-over-words
-      cifraDiv.find('a.acorde, .chord').each((_, el) => {
-        $(el).replaceWith(`${$(el).text()} `);
-      });
-      cifra = cifraDiv.text().trim();
-    }
-  }
+  if (!cifra) throw new Error('Não foi possível extrair a cifra desta página');
 
-  if (!cifra) {
-    throw new Error('Não foi possível extrair a cifra desta página');
-  }
-
-  // Limpar cifra: remover propagandas, links de compra etc
+  // Limpar cifra
   cifra = cifra
     .replace(/\[tab\]|\[\/tab\]/gi, '')
-    .replace(/Aprenda a tocar.*/gi, '')
-    .replace(/Tom:.*/gi, '')
+    .replace(/\r/g, '')
     .trim();
 
   return { titulo, artista, tomOriginal, cifra, url };
