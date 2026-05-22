@@ -166,12 +166,22 @@ import Base from '../../layouts/Base.astro';
 
   function renderCifraPairs(chords: ChordPos[], lyric: string): string {
     let html = '';
+    let pos = 0;
     for (let i = 0; i < chords.length; i++) {
       const { c, col: start } = chords[i]!;
       const end = chords[i+1]?.col ?? lyric.length;
+      // Texto antes deste acorde (sem acorde acima)
+      if (start > pos) {
+        html += `<span class="cifra-pair"><span class="chord-gap"></span><span class="lyric-slice">${escHtml(lyric.slice(pos, start))}</span></span>`;
+      }
       const slice = lyric.slice(start, Math.min(end, lyric.length));
       const safe = escHtml(c);
       html += `<span class="cifra-pair"><span class="chord" data-chord="${safe}" data-orig="${safe}">${safe}</span><span class="lyric-slice">${escHtml(slice)}</span></span>`;
+      pos = end;
+    }
+    // Texto restante após o último acorde
+    if (pos < lyric.length) {
+      html += `<span class="lyric-slice">${escHtml(lyric.slice(pos))}</span>`;
     }
     return html;
   }
@@ -439,7 +449,8 @@ import Base from '../../layouts/Base.astro';
 
       chordSvgs = m.chord_svgs || {};
       sections = parseCifra(m.cifra || '');
-      baseTom = (FLAT_TO_SHARP[m.tom] ?? m.tom) || '';
+      const rawBaseTom = m.tom || m.tom_original || '';
+      baseTom = (FLAT_TO_SHARP[rawBaseTom] ?? rawBaseTom) || '';
       savedUserTom = (FLAT_TO_SHARP[m.user_tom] ?? m.user_tom) || '';
       const normTomOriginal = (FLAT_TO_SHARP[m.tom_original] ?? m.tom_original) || baseTom;
       // Offset para o Reset: volta ao tom_original

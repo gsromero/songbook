@@ -88,13 +88,16 @@ const ROOT_MAP = {
 const SUFFIX_MAP = {
   '': 'major', maj: 'major',
   m: 'minor', min: 'minor',
-  '7': '7', m7: 'm7', maj7: 'maj7', M7: 'maj7',
+  // Maj7 aliases (CifraClub usa "7M", "M7", "maj7", "Maj7")
+  '7': '7', m7: 'm7', maj7: 'maj7', M7: 'maj7', '7M': 'maj7', Maj7: 'maj7',
   '9': '9', m9: 'm9', maj9: 'maj9', add9: 'add9',
   '11': '11', '13': '13',
   dim: 'dim', '°': 'dim', 'º': 'dim',
   dim7: 'dim7', '°7': 'dim7',
   aug: 'aug', '+': 'aug',
   sus2: 'sus2', sus4: 'sus4', sus: 'sus4',
+  // Acordes com 4ª (CifraClub usa "4" para sus4 às vezes)
+  '4': 'sus4',
   m7b5: 'm7b5', ø: 'm7b5', 'ø7': 'm7b5',
   '6': '6', m6: 'm6',
   '5': '5',
