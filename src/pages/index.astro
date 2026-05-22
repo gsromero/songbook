@@ -21,6 +21,7 @@ import Base from '../layouts/Base.astro';
       <span class="ctrl-label">Busca</span>
       <div class="busca-wrap">
         <input id="filtro-busca" type="search" placeholder="Título, artista ou acorde: Bm…" class="input filtro-busca-input" />
+        <button id="btn-buscar-cifraclub-inline" class="btn btn-cc-inline" type="button" style="display:none;">🔍 CifraClub</button>
       </div>
     </div>
 
@@ -53,10 +54,9 @@ import Base from '../layouts/Base.astro';
   <!-- Grid de músicas -->
   <div id="card-grid" class="card-grid"></div>
 
-  <!-- Banner "Buscar no CifraClub" -->
+  <!-- Mensagem "sem resultado" -->
   <div id="cifraclub-banner" style="display:none;" class="cifraclub-banner">
     <p>Nenhuma música encontrada no catálogo.</p>
-    <button id="btn-buscar-cifraclub" class="btn btn-accent" type="button">🔍 Buscar no CifraClub</button>
   </div>
 
   <!-- Modal: resultados CifraClub -->
@@ -278,10 +278,13 @@ import Base from '../layouts/Base.astro';
     });
     (document.getElementById('filtro-favoritos') as HTMLElement).setAttribute('data-ativo', String(filtroFavoritos));
 
-    // Banner CifraClub
+    // Banner CifraClub + botão inline
     const banner = document.getElementById('cifraclub-banner')!;
+    const btnInline = document.getElementById('btn-buscar-cifraclub-inline') as HTMLButtonElement;
     const buscaAtiva = filtroBusca.trim().length > 0;
-    banner.style.display = (buscaAtiva && filtradas.length === 0) ? '' : 'none';
+    const semResultados = buscaAtiva && filtradas.length === 0;
+    banner.style.display = semResultados ? '' : 'none';
+    if (btnInline) btnInline.style.display = buscaAtiva ? '' : 'none';
   }
 
   // ── Leitura de URL params ─────────────────────────────────────────────────────
@@ -333,12 +336,11 @@ import Base from '../layouts/Base.astro';
   });
 
   // ── CifraClub: busca ──────────────────────────────────────────────────────────
-  document.getElementById('btn-buscar-cifraclub')?.addEventListener('click', async () => {
+  async function buscarNoCifraClub() {
     const q = filtroBusca.trim();
     if (!q) return;
-    const btn = document.getElementById('btn-buscar-cifraclub') as HTMLButtonElement;
-    btn.disabled = true;
-    btn.textContent = 'Buscando…';
+    const btn = document.getElementById('btn-buscar-cifraclub-inline') as HTMLButtonElement;
+    if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
 
     try {
       const res = await fetch(`/api/cifraclub/search?q=${encodeURIComponent(q)}`);
@@ -363,10 +365,11 @@ import Base from '../layouts/Base.astro';
     } catch (err: any) {
       alert('Erro ao buscar: ' + err.message);
     } finally {
-      btn.disabled = false;
-      btn.textContent = '🔍 Buscar no CifraClub';
+      if (btn) { btn.disabled = false; btn.textContent = '🔍 CifraClub'; }
     }
-  });
+  }
+
+  document.getElementById('btn-buscar-cifraclub-inline')?.addEventListener('click', buscarNoCifraClub);
 
   async function selecionarResultado(url: string) {
     document.getElementById('modal-resultados')!.style.display = 'none';
@@ -457,8 +460,9 @@ import Base from '../layouts/Base.astro';
   .recente-artista { font-style: italic; font-size: 0.75rem; color: var(--ink-soft); }
 
   .filtros { margin-bottom: 1.5rem; }
-  .busca-wrap { position: relative; }
+  .busca-wrap { display: flex; align-items: center; gap: 0.5rem; }
   .filtro-busca-input { width: 20rem; }
+  .btn-cc-inline { white-space: nowrap; }
   .btn-row { display: flex; gap: 2px; flex-wrap: wrap; }
   .tag-count { font-size: 0.7em; opacity: 0.6; }
 
