@@ -1,0 +1,523 @@
+---
+import Base from '../../layouts/Base.astro';
+---
+
+<Base title="Cifra" wide={true}>
+  <div id="musica-loading" style="text-align:center;padding:3rem;font-style:italic;color:var(--ink-soft);">Carregando…</div>
+  <div id="musica-app" style="display:none;">
+
+    <!-- Cabeçalho da música -->
+    <div class="musica-header">
+      <a href="/" class="back-link">← Repertório</a>
+      <div class="musica-meta">
+        <h1 id="m-titulo" class="musica-titulo"></h1>
+        <div class="musica-info-row">
+          <a id="m-artista" href="#" class="musica-artista"></a>
+          <span class="meta-sep">·</span>
+          <span id="m-tom-original" class="tom-original" style="display:none;"></span>
+        </div>
+        <div class="musica-actions-row">
+          <button id="btn-favorito" class="btn-heart" title="Favoritar" aria-label="Favoritar">♡</button>
+          <span id="m-adicionado-por" class="adicionado-por" style="display:none;"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tom do usuário -->
+    <div class="tom-row">
+      <label for="input-meu-tom" class="tom-label">Meu tom:</label>
+      <input id="input-meu-tom" type="text" class="input input-tom" maxlength="3" placeholder="–" title="Tom que você toca" />
+      <span id="tom-saved-msg" class="tom-saved" style="display:none;">✓ salvo</span>
+    </div>
+
+    <!-- Tags -->
+    <div id="m-tags" class="musica-tags"></div>
+
+    <!-- Links externos -->
+    <div id="m-links" class="musica-links" style="display:none;">
+      <a id="link-cifraclub" href="#" target="_blank" rel="noopener" style="display:none;" class="ext-link">Cifra Club ↗</a>
+      <a id="link-youtube-btn" href="#" target="_blank" rel="noopener" style="display:none;" class="ext-link ext-link-yt">YouTube ↗</a>
+    </div>
+
+    <!-- YouTube embed -->
+    <div id="yt-embed-wrap" style="display:none;" class="yt-embed-wrap">
+      <iframe id="yt-embed" class="yt-embed" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    </div>
+
+    <!-- Controles da cifra -->
+    <div class="cifra-controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">Transpor</span>
+        <div class="btn-row">
+          <button class="btn transpose-btn" data-dir="-1" type="button">−</button>
+          <span id="transpose-display" class="transpose-display">±0</span>
+          <button class="btn transpose-btn" data-dir="+1" type="button">+</button>
+          <button class="btn btn-ghost" id="btn-reset-transpose" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">Colunas</span>
+        <div class="btn-row">
+          {[1,2,3,4].map(n => <button class="btn col-btn" data-cols={n} aria-pressed={n === 1} type="button">{n}</button>)}
+        </div>
+      </div>
+      <div class="ctrl-group">
+        <button id="btn-pratica" class="btn" type="button">🎯 Modo Prática</button>
+      </div>
+    </div>
+
+    <!-- Cifra -->
+    <div id="cifra-wrap" class="cifra-wrap">
+      <div id="cifra-columns" class="cifra-columns" style="--num-cols: 1"></div>
+      <div id="chord-tooltip" class="chord-tooltip" role="tooltip" aria-hidden="true">
+        <div class="tooltip-name" id="tooltip-name"></div>
+        <div class="tooltip-diagram" id="tooltip-diagram"></div>
+      </div>
+    </div>
+
+    <!-- Acordes utilizados -->
+    <section id="acordes-section" class="acordes-section" style="display:none;"></section>
+
+    <!-- Músicas parecidas -->
+    <section id="similares-section" style="display:none; margin-top:2rem;">
+      <h2 class="section-label">Você pode gostar</h2>
+      <div id="similares-grid" class="recentes-grid"></div>
+    </section>
+
+  </div>
+  <div id="musica-error" style="display:none;text-align:center;padding:3rem;color:var(--ink-soft);font-style:italic;"></div>
+</Base>
+
+<script>
+  // ── Slug da URL ───────────────────────────────────────────────────────────────
+  const slug = window.location.pathname.replace(/^\/musica\//, '').replace(/\/$/, '');
+
+  // ── Constantes de transpose ───────────────────────────────────────────────────
+  const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const FLAT_TO_SHARP: Record<string,string> = {Bb:'A#',Db:'C#',Eb:'D#',Gb:'F#',Ab:'G#'};
+
+  function transposeNote(note: string, n: number): string {
+    const base = FLAT_TO_SHARP[note] ?? note;
+    const idx = NOTES.indexOf(base);
+    if (idx === -1) return note;
+    return NOTES[((idx + n) % 12 + 12) % 12] ?? note;
+  }
+  function transposeChordName(chord: string, n: number): string {
+    if (n === 0) return chord;
+    const m = chord.match(/^([A-G][b#]?)(.*)$/);
+    if (!m) return chord;
+    return transposeNote(m[1] ?? '', n) + (m[2] ?? '');
+  }
+
+  // ── Parse cifra ───────────────────────────────────────────────────────────────
+  const CHORD_TOKEN = /^[A-G][b#]?(?:maj|min|m|dim|aug|sus|add|°|º|ø)?\d*(?:[b#]\d+)?(?:\([^)]+\))?(?:\/[A-G][b#]?)?$/;
+  const CHORD_FIND_SRC = '[A-G][b#]?(?:maj|min|m|dim|aug|sus|add|°|º|ø)?\\d*(?:[b#]\\d+)?(?:\\([^)]+\\))?(?:\\/[A-G][b#]?)?';
+
+  type ChordPos = { c: string; col: number };
+  type Line = { type: 'cifra'; chords: ChordPos[]; lyric: string } | { type: 'chords-only'; chords: ChordPos[] } | { type: 'lyric-only'; lyric: string };
+  type Section = { header: string; lines: Line[] };
+
+  function classifyLine(line: string): 'empty' | 'section' | 'chord' | 'lyric' {
+    const t = line.trim();
+    if (!t) return 'empty';
+    if (/^\[.+\]$/.test(t)) return 'section';
+    const tokens = t.split(/\s+/);
+    const cc = tokens.filter(tok => CHORD_TOKEN.test(tok)).length;
+    return cc / tokens.length >= 0.6 ? 'chord' : 'lyric';
+  }
+
+  function extractPositions(line: string): ChordPos[] {
+    const re = new RegExp('\\b' + CHORD_FIND_SRC + '\\b', 'g');
+    const out: ChordPos[] = [];
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      if (CHORD_TOKEN.test(m[0])) out.push({ c: m[0], col: m.index });
+    }
+    return out;
+  }
+
+  function parseCifra(raw: string): Section[] {
+    const lines = raw.replace(/\r/g, '').split('\n');
+    const sections: Section[] = [];
+    let current: Section | null = null;
+    let pending: ChordPos[] | null = null;
+    function ensure() { if (!current) { current = { header: '', lines: [] }; sections.push(current); } }
+    function flush() { if (pending) { ensure(); current!.lines.push({ type: 'chords-only', chords: pending }); pending = null; } }
+    for (const line of lines) {
+      const kind = classifyLine(line);
+      if (kind === 'section') { flush(); current = { header: line.trim(), lines: [] }; sections.push(current); }
+      else if (kind === 'empty') { flush(); }
+      else if (kind === 'chord') { flush(); pending = extractPositions(line); }
+      else { ensure(); if (pending) { current!.lines.push({ type: 'cifra', chords: pending, lyric: line.replace(/\s+$/, '') }); pending = null; } else { current!.lines.push({ type: 'lyric-only', lyric: line.replace(/\s+$/, '') }); } }
+    }
+    flush();
+    return sections;
+  }
+
+  // ── HTML render de cifra ──────────────────────────────────────────────────────
+  function escHtml(s: string) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function renderChordLine(chords: ChordPos[]): string {
+    let html = '', col = 0;
+    for (const { c, col: t } of chords) {
+      while (col < t) { html += ' '; col++; }
+      const safe = escHtml(c);
+      html += `<span class="chord" data-chord="${safe}" data-orig="${safe}">${safe}</span>`;
+      col += c.length;
+    }
+    return html;
+  }
+
+  function renderCifraPairs(chords: ChordPos[], lyric: string): string {
+    let html = '';
+    for (let i = 0; i < chords.length; i++) {
+      const { c, col: start } = chords[i]!;
+      const end = chords[i+1]?.col ?? lyric.length;
+      const slice = lyric.slice(start, Math.min(end, lyric.length));
+      const safe = escHtml(c);
+      html += `<span class="cifra-pair"><span class="chord" data-chord="${safe}" data-orig="${safe}">${safe}</span><span class="lyric-slice">${escHtml(slice)}</span></span>`;
+    }
+    return html;
+  }
+
+  function sectionHTML(sec: Section, pratica: boolean): string {
+    let html = '';
+    if (sec.header) html += `<div class="cifra-header">${sec.header}</div>`;
+    for (const line of sec.lines) {
+      if (line.type === 'cifra') {
+        if (pratica) {
+          html += `<div class="cifra-line chord-line">${renderChordLine(line.chords)}</div>`;
+        } else {
+          html += `<div class="cifra-line has-pairs">${renderCifraPairs(line.chords, line.lyric)}</div>`;
+        }
+      } else if (line.type === 'chords-only') {
+        html += `<div class="cifra-line chord-line">${renderChordLine(line.chords)}</div><div class="cifra-line spacer"></div>`;
+      } else if (!pratica) {
+        html += `<div class="cifra-line lyric-line">${escHtml(line.lyric)}</div>`;
+      }
+    }
+    return html ? `<div class="cifra-section-block">${html}</div>` : '';
+  }
+
+  // ── Columns ───────────────────────────────────────────────────────────────────
+  let sections: Section[] = [];
+  let numCols = Number(localStorage.getItem('gm:colunas') ?? '1');
+  let praticaMode = false;
+
+  function renderCifra() {
+    const root = document.getElementById('cifra-columns')!;
+    root.style.setProperty('--num-cols', String(numCols));
+    root.innerHTML = '';
+
+    const blocks = sections.map(s => sectionHTML(s, praticaMode)).filter(Boolean);
+    if (numCols <= 1) {
+      const col = document.createElement('div');
+      col.className = 'cifra-column';
+      col.innerHTML = blocks.join('');
+      root.appendChild(col);
+    } else {
+      // Distribute evenly by line count
+      const lineCount = (html: string) => (html.match(/cifra-line/g) || []).length + 3;
+      const weights = blocks.map(lineCount);
+      const total = weights.reduce((a,b)=>a+b,0);
+      const target = total / numCols;
+      const cols: string[][] = Array.from({length: numCols}, () => []);
+      let ci = 0, acc = 0;
+      blocks.forEach((b, i) => {
+        if (ci < numCols - 1 && acc > 0 && acc + weights[i]!/2 > target) { ci++; acc = 0; }
+        cols[ci]!.push(b);
+        acc += weights[i]!;
+      });
+      cols.forEach(group => {
+        if (!group.length) return;
+        const col = document.createElement('div');
+        col.className = 'cifra-column';
+        col.innerHTML = group.join('');
+        root.appendChild(col);
+      });
+    }
+
+    syncColButtons();
+    applyTranspose(transposeOffset, false);
+  }
+
+  function syncColButtons() {
+    document.querySelectorAll<HTMLElement>('.col-btn').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(Number(btn.dataset['cols']) === numCols));
+    });
+  }
+
+  // ── Transpose ─────────────────────────────────────────────────────────────────
+  let transposeOffset = 0;
+  let chordSvgs: Record<string,string> = {};
+
+  function applyTranspose(offset: number, save = true) {
+    transposeOffset = offset;
+    if (save) {
+      fetch(`/api/transpose/${slug}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ offset }) }).catch(() => {});
+    }
+    document.querySelectorAll<HTMLElement>('.chord[data-orig]').forEach(el => {
+      const orig = el.dataset['orig'] ?? '';
+      const name = transposeChordName(orig, offset);
+      el.textContent = name;
+      el.dataset['chord'] = name;
+    });
+    const display = document.getElementById('transpose-display');
+    if (display) display.textContent = offset === 0 ? '±0' : (offset > 0 ? `+${offset}` : String(offset));
+    renderAcordesSection();
+  }
+
+  // ── Tooltip ───────────────────────────────────────────────────────────────────
+  const tooltip = document.getElementById('chord-tooltip')!;
+  document.body.appendChild(tooltip);
+  const tipName = document.getElementById('tooltip-name')!;
+  const tipDiagram = document.getElementById('tooltip-diagram')!;
+  let hideTimer: number | null = null;
+
+  function showTooltip(el: HTMLElement) {
+    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
+    const name = el.dataset['chord'] || '';
+    tipName.textContent = name;
+    const svg = chordSvgs[name] || chordSvgs[transposeChordName(name, -transposeOffset)];
+    tipDiagram.innerHTML = svg || `<div style="font-size:0.75rem;color:var(--ink-soft);padding:0.5rem;font-style:italic;">Diagrama não disponível</div>`;
+    tooltip.classList.add('visible');
+    tooltip.setAttribute('aria-hidden', 'false');
+  }
+  function positionTooltip(x: number, y: number) {
+    const tw = tooltip.offsetWidth || 120, th = tooltip.offsetHeight || 170;
+    let left = x + 14, top = y + 14;
+    if (x + tw + 24 > window.innerWidth) left = x - tw - 14;
+    if (y + th + 24 > window.innerHeight) top = y - th - 14;
+    tooltip.style.left = left + 'px'; tooltip.style.top = top + 'px';
+  }
+  function hideTooltipSoon() {
+    if (!tooltip) return;
+    hideTimer = window.setTimeout(() => { tooltip.classList.remove('visible'); tooltip.setAttribute('aria-hidden','true'); }, 80);
+  }
+  document.addEventListener('mouseover', e => { const c = (e.target as HTMLElement).closest<HTMLElement>('.chord'); if (c) { showTooltip(c); positionTooltip(e.clientX, e.clientY); } });
+  document.addEventListener('mousemove', e => { if ((e.target as HTMLElement).closest('.chord')) positionTooltip(e.clientX, e.clientY); });
+  document.addEventListener('mouseout', e => { const rel = e.relatedTarget as HTMLElement|null; if ((e.target as HTMLElement).closest('.chord') && (!rel || !rel.closest('.chord'))) hideTooltipSoon(); });
+
+  // ── Acordes utilizados ────────────────────────────────────────────────────────
+  function renderAcordesSection() {
+    const section = document.getElementById('acordes-section')!;
+    const seen = new Set<string>(); const unique: string[] = [];
+    for (const sec of sections) {
+      for (const line of sec.lines) {
+        if ('chords' in line) for (const { c } of line.chords) {
+          const name = transposeChordName(c, transposeOffset);
+          if (!seen.has(name)) { seen.add(name); unique.push(name); }
+        }
+      }
+    }
+    if (!unique.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    section.innerHTML = `<h2 class="acordes-titulo">Acordes utilizados</h2><div class="acordes-grid">${
+      unique.map(c => {
+        const svg = chordSvgs[c] || chordSvgs[transposeChordName(c, -transposeOffset)];
+        return `<div class="chord-card"><div class="chord-card-name">${c}</div>${svg ? `<div class="chord-card-svg">${svg}</div>` : `<div class="chord-card-no-svg">—</div>`}</div>`;
+      }).join('')
+    }</div>`;
+  }
+
+  // ── Músicas parecidas ─────────────────────────────────────────────────────────
+  async function loadSimilares() {
+    const res = await fetch(`/api/musicas/${slug}/similares`);
+    const similares: any[] = await res.json();
+    if (!similares.length) return;
+    const section = document.getElementById('similares-section')!;
+    const grid = document.getElementById('similares-grid')!;
+    grid.innerHTML = similares.map(m => `
+      <a href="/musica/${m.slug}" class="recente-card">
+        <span class="recente-titulo">${m.titulo}</span>
+        <span class="recente-artista">${m.artista}</span>
+      </a>
+    `).join('');
+    section.style.display = '';
+  }
+
+  // ── Favorito ──────────────────────────────────────────────────────────────────
+  let isFavorito = false;
+  function setFavorito(fav: boolean) {
+    isFavorito = fav;
+    const btn = document.getElementById('btn-favorito')!;
+    btn.textContent = fav ? '❤️' : '♡';
+    btn.style.opacity = fav ? '1' : '0.5';
+  }
+  document.getElementById('btn-favorito')?.addEventListener('click', async () => {
+    const method = isFavorito ? 'DELETE' : 'POST';
+    await fetch(`/api/favoritos/${slug}`, { method });
+    setFavorito(!isFavorito);
+  });
+
+  // ── Meu tom ───────────────────────────────────────────────────────────────────
+  let tomSaveTimer: number | null = null;
+  document.getElementById('input-meu-tom')?.addEventListener('input', e => {
+    const val = (e.target as HTMLInputElement).value.trim();
+    if (tomSaveTimer !== null) clearTimeout(tomSaveTimer);
+    tomSaveTimer = window.setTimeout(async () => {
+      if (!val.match(/^[A-G][b#]?m?$/)) return;
+      await fetch(`/api/user-tom/${slug}`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ tom: val }) });
+      const msg = document.getElementById('tom-saved-msg')!;
+      msg.style.display = '';
+      setTimeout(() => { msg.style.display = 'none'; }, 2000);
+    }, 600);
+  });
+
+  // ── YouTube embed ─────────────────────────────────────────────────────────────
+  function getYoutubeId(url: string): string | null {
+    const m = url.match(/(?:v=|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  async function init() {
+    try {
+      const res = await fetch(`/api/musicas/${slug}`);
+      if (!res.ok) throw new Error('Música não encontrada');
+      const m = await res.json();
+
+      chordSvgs = m.chord_svgs || {};
+      sections = parseCifra(m.cifra || '');
+      transposeOffset = m.user_transpose ?? 0;
+
+      // Preencher cabeçalho
+      document.title = `${m.titulo} — Songbook`;
+      (document.getElementById('m-titulo') as HTMLElement).textContent = m.titulo;
+      const artistaEl = document.getElementById('m-artista') as HTMLAnchorElement;
+      artistaEl.textContent = m.artista;
+      artistaEl.href = `/?artista=${encodeURIComponent(m.artista)}`;
+
+      if (m.tom_original) {
+        const tomEl = document.getElementById('m-tom-original')!;
+        tomEl.textContent = `Tom original: ${m.tom_original}`;
+        tomEl.style.display = '';
+      }
+
+      // Meu tom
+      const inputTom = document.getElementById('input-meu-tom') as HTMLInputElement;
+      inputTom.value = m.user_tom || m.tom || '';
+
+      // Tags
+      const tagsEl = document.getElementById('m-tags')!;
+      tagsEl.innerHTML = (m.tags || []).map((t: string) =>
+        `<a class="tag-pill" href="/?tag=${encodeURIComponent(t)}">#${t}</a>`
+      ).join('');
+
+      // Adicionado por
+      if (m.adicionado_por_username) {
+        const addEl = document.getElementById('m-adicionado-por')!;
+        addEl.textContent = `adicionado por ${m.adicionado_por_username}`;
+        addEl.style.display = '';
+      }
+
+      // Links externos
+      const linksEl = document.getElementById('m-links')!;
+      if (m.link_cifraclub) {
+        const a = document.getElementById('link-cifraclub') as HTMLAnchorElement;
+        a.href = m.link_cifraclub; a.style.display = '';
+        linksEl.style.display = '';
+      }
+      if (m.link_youtube) {
+        const a = document.getElementById('link-youtube-btn') as HTMLAnchorElement;
+        a.href = m.link_youtube; a.style.display = '';
+        linksEl.style.display = '';
+        // Embed
+        const ytId = getYoutubeId(m.link_youtube);
+        if (ytId) {
+          const iframe = document.getElementById('yt-embed') as HTMLIFrameElement;
+          iframe.src = `https://www.youtube-nocookie.com/embed/${ytId}`;
+          document.getElementById('yt-embed-wrap')!.style.display = '';
+        }
+      }
+
+      // Favorito
+      setFavorito(m.favorito);
+
+      // Render cifra
+      renderCifra();
+
+      // Show
+      document.getElementById('musica-loading')!.style.display = 'none';
+      document.getElementById('musica-app')!.style.display = '';
+
+      // Parecidas
+      loadSimilares();
+
+    } catch (err: any) {
+      document.getElementById('musica-loading')!.style.display = 'none';
+      const errEl = document.getElementById('musica-error')!;
+      errEl.textContent = err.message || 'Erro ao carregar música';
+      errEl.style.display = '';
+    }
+  }
+
+  init();
+
+  // ── Event listeners ───────────────────────────────────────────────────────────
+  document.querySelectorAll<HTMLElement>('.transpose-btn').forEach(btn => {
+    btn.addEventListener('click', () => { applyTranspose(transposeOffset + Number(btn.dataset['dir'])); });
+  });
+  document.getElementById('btn-reset-transpose')?.addEventListener('click', () => applyTranspose(0));
+
+  document.querySelectorAll<HTMLElement>('.col-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      numCols = Number(btn.dataset['cols']); localStorage.setItem('gm:colunas', String(numCols)); renderCifra();
+    });
+  });
+
+  document.getElementById('btn-pratica')?.addEventListener('click', () => {
+    praticaMode = !praticaMode;
+    (document.getElementById('btn-pratica') as HTMLButtonElement).textContent = praticaMode ? '📄 Ver cifra' : '🎯 Modo Prática';
+    renderCifra();
+  });
+</script>
+
+<style>
+  .back-link { font-size: 0.9rem; color: var(--ink-soft); text-decoration: none; font-style: italic; display: inline-block; margin-bottom: 0.75rem; }
+  .back-link:hover { color: var(--accent); }
+
+  .musica-header { margin-bottom: 1rem; }
+  .musica-titulo { font-family: var(--font-display); font-weight: 600; font-size: clamp(1.6rem, 4vw, 2.4rem); color: var(--ink); letter-spacing: -0.01em; margin-bottom: 0.3rem; }
+  .musica-info-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.4rem; }
+  .musica-artista { font-family: var(--font-serif); font-style: italic; font-size: 1.1rem; color: var(--ink-soft); text-decoration: none; }
+  .musica-artista:hover { color: var(--accent); }
+  .meta-sep { color: var(--ink-soft); opacity: 0.5; }
+  .tom-original { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-soft); }
+  .musica-actions-row { display: flex; align-items: center; gap: 0.75rem; }
+  .btn-heart { background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 0; opacity: 0.5; transition: opacity 0.15s, transform 0.15s; }
+  .btn-heart:hover { opacity: 1; transform: scale(1.2); }
+  .adicionado-por { font-size: 0.75rem; font-style: italic; color: var(--ink-soft); opacity: 0.6; }
+
+  .tom-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .tom-label { font-size: 0.85rem; font-style: italic; color: var(--ink-soft); }
+  .input-tom { width: 4rem; text-align: center; font-family: var(--font-mono); font-size: 0.95rem; font-weight: 600; color: var(--accent); padding: 0.25rem 0.5rem; border: 1px solid var(--paper-line); border-radius: 4px; background: var(--bg); }
+  .input-tom:focus { border-color: var(--accent); outline: none; }
+  .tom-saved { font-size: 0.75rem; color: var(--accent); font-style: italic; }
+
+  .musica-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
+  .tag-pill { font-family: var(--font-serif); font-style: italic; font-size: 0.85rem; color: var(--ink-soft); text-decoration: none; padding: 0.15rem 0.5rem; border: 1px solid var(--paper-line); border-radius: 12px; transition: all 0.15s; }
+  .tag-pill:hover { color: var(--accent); border-color: var(--accent); }
+
+  .musica-links { display: flex; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
+  .ext-link { font-size: 0.85rem; color: var(--ink-soft); text-decoration: none; font-style: italic; }
+  .ext-link:hover { color: var(--accent); }
+  .ext-link-yt:hover { color: #e74c3c; }
+
+  .yt-embed-wrap { margin-bottom: 1.25rem; border-radius: 6px; overflow: hidden; aspect-ratio: 16/9; max-width: 36rem; }
+  .yt-embed { width: 100%; height: 100%; border: none; }
+
+  .cifra-controls { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.25rem; }
+  .transpose-display { font-family: var(--font-mono); font-size: 0.85rem; color: var(--accent); min-width: 2.5rem; text-align: center; padding: 0.3rem 0.5rem; }
+
+  .cifra-wrap { position: relative; }
+  .acordes-section { margin-top: 2rem; padding: 1.2rem 1.4rem 1.6rem; background: var(--diagram-bg); border: 1px solid var(--diagram-border); border-radius: 6px; }
+  .acordes-titulo { font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1.1rem; color: var(--ink-soft); text-align: center; margin-bottom: 1rem; }
+
+  .section-label { font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1rem; color: var(--ink-soft); margin-bottom: 0.75rem; }
+  .recentes-grid { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .recente-card { display: flex; flex-direction: column; padding: 0.5rem 0.9rem; background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 5px; text-decoration: none; color: inherit; transition: border-color 0.15s; min-width: 8rem; }
+  .recente-card:hover { border-color: var(--accent-soft); }
+  .recente-titulo { font-family: var(--font-display); font-size: 0.9rem; color: var(--ink); }
+  .recente-artista { font-style: italic; font-size: 0.75rem; color: var(--ink-soft); }
+</style>

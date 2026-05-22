@@ -43,9 +43,10 @@ const base = import.meta.env.BASE_URL;
     <header class="site-header">
       <nav class:list={['site-nav px-6', full ? '' : wide ? 'mx-auto max-w-screen-2xl' : 'mx-auto max-w-6xl']}>
         <a href={base} class="brand">🎸 Songbook</a>
-        <a href={`${base}progresso`} class="navlink" data-i18n="nav_progress">Progresso</a>
         <a href={`${base}plano`} class="navlink" data-i18n="nav_plan">Plano</a>
         <div class="nav-actions">
+          <span id="nav-username" class="nav-user" style="display:none"></span>
+          <button id="nav-logout" class="btn btn-ghost nav-logout" type="button" style="display:none">Sair</button>
           <div class="lang-switch" role="group" aria-label="Language / Idioma">
             <button class="lang-btn" data-lang="pt" type="button" aria-pressed="true">PT</button>
             <button class="lang-btn" data-lang="en" type="button" aria-pressed="false">EN</button>
@@ -125,6 +126,20 @@ const base = import.meta.env.BASE_URL;
       const currentLang = getLang();
       syncLangButtons(currentLang);
       if (currentLang !== 'pt') applyTranslations(currentLang);
+
+      // ── User info + logout ────────────────────────────────────────────────────
+      const navUsername = document.getElementById('nav-username');
+      const navLogout = document.getElementById('nav-logout');
+      fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(user => {
+        if (user && navUsername && navLogout) {
+          navUsername.textContent = user.username;
+          navUsername.style.display = '';
+          navLogout.style.display = '';
+        }
+      }).catch(() => {});
+      navLogout?.addEventListener('click', () => {
+        fetch('/api/auth/logout', { method: 'POST' }).then(() => { window.location.href = '/login'; });
+      });
 
       document.querySelectorAll<HTMLElement>('.lang-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -206,6 +221,9 @@ const base = import.meta.env.BASE_URL;
         background: color-mix(in srgb, var(--accent) 10%, transparent);
       }
 
+      .nav-user { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-soft); }
+      .nav-logout { font-size: 0.75rem; padding: 0.2rem 0.6rem; border-color: transparent; background: transparent; color: var(--ink-soft); cursor: pointer; }
+      .nav-logout:hover { color: var(--accent); }
       .btn-icon {
         min-width: 2.2rem;
         font-size: 0.9rem;

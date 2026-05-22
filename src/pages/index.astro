@@ -1,162 +1,514 @@
 ---
-import { getCollection } from 'astro:content';
 import Base from '../layouts/Base.astro';
-import StatusBadge from '../components/StatusBadge.astro';
-import Filtros from '../components/Filtros.astro';
-
-const musicas = await getCollection('musicas');
-musicas.sort((a, b) => {
-  const nivelOrder = ['N1', 'N2', 'N3', 'N4', 'N5'];
-  const nd = (nivelOrder.indexOf(a.data.nivel) ?? 0) - (nivelOrder.indexOf(b.data.nivel) ?? 0);
-  if (nd !== 0) return nd;
-  return a.data.artista.localeCompare(b.data.artista, 'pt');
-});
-
-const artistas = [...new Set(musicas.map(m => m.data.artista))];
-const tags = [...new Set(musicas.flatMap(m => m.data.tags ?? []))];
-
-const base = import.meta.env.BASE_URL;
-const total = musicas.length;
 ---
 
 <Base title="Repertório">
+  <!-- Recentes -->
+  <section id="recentes-section" style="display:none; margin-bottom:1.5rem;">
+    <h2 class="section-label">Tocadas recentemente</h2>
+    <div id="recentes-grid" class="recentes-grid"></div>
+  </section>
+
+  <!-- Cabeçalho -->
   <div class="page-head">
-    <h1 class="page-title" data-i18n="repertoire">Repertório</h1>
-    <p class="page-sub songs-count" data-total={total}>{total} músicas</p>
+    <h1 class="page-title">Repertório</h1>
+    <p class="page-sub"><span id="songs-count">—</span></p>
   </div>
 
-  <Filtros artistas={artistas} tags={tags} />
+  <!-- Filtros -->
+  <div class="controls filtros" id="filtros">
+    <div class="ctrl-group">
+      <span class="ctrl-label">Busca</span>
+      <div class="busca-wrap">
+        <input id="filtro-busca" type="search" placeholder="Título, artista ou acorde: Bm…" class="input filtro-busca-input" />
+      </div>
+    </div>
 
-  <div class="card-grid">
-    {musicas.map(m => (
-      <a
-        href={`${base}musica/${m.data.slug}`}
-        class="music-card"
-        data-musica-card
-        data-titulo={m.data.titulo}
-        data-artista={m.data.artista}
-        data-nivel={m.data.nivel}
-        data-status={m.data.status}
-        data-tags={(m.data.tags ?? []).join(',')}
-      >
-        <div class="card-top">
-          <span class="meta-badge">{m.data.nivel}</span>
-          <StatusBadge status={m.data.status} />
+    <div class="ctrl-group">
+      <span class="ctrl-label">Tags</span>
+      <div id="tags-container" class="btn-row"></div>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">Artista</span>
+      <select id="filtro-artista" class="input"><option value="">Todos</option></select>
+    </div>
+
+    <div class="ctrl-group">
+      <span class="ctrl-label">Ordenar</span>
+      <div class="btn-row">
+        <button class="btn filtro-ordem" data-ordem="recentes" aria-pressed="true" type="button">Recentes</button>
+        <button class="btn filtro-ordem" data-ordem="az" aria-pressed="false" type="button">A–Z</button>
+        <button class="btn filtro-ordem" data-ordem="artista" aria-pressed="false" type="button">Artista</button>
+      </div>
+    </div>
+
+    <div class="ctrl-group">
+      <button id="filtro-favoritos" class="btn" data-ativo="false" type="button">❤️ Favoritos</button>
+      <button id="filtro-limpar" class="btn btn-ghost" type="button">Limpar</button>
+      <span id="filtro-count" class="ctrl-label" style="margin-left:auto;font-style:italic;"></span>
+    </div>
+  </div>
+
+  <!-- Grid de músicas -->
+  <div id="card-grid" class="card-grid"></div>
+
+  <!-- Banner "Buscar no CifraClub" -->
+  <div id="cifraclub-banner" style="display:none;" class="cifraclub-banner">
+    <p>Nenhuma música encontrada no catálogo.</p>
+    <button id="btn-buscar-cifraclub" class="btn btn-accent" type="button">🔍 Buscar no CifraClub</button>
+  </div>
+
+  <!-- Modal: resultados CifraClub -->
+  <div id="modal-resultados" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Resultados no CifraClub</span>
+        <button class="modal-close" id="btn-fechar-resultados">✕</button>
+      </div>
+      <div id="resultados-lista" class="resultados-lista"></div>
+    </div>
+  </div>
+
+  <!-- Modal: confirmar adição -->
+  <div id="modal-confirmar" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <span class="modal-title">Adicionar música</span>
+        <button class="modal-close" id="btn-fechar-confirmar">✕</button>
+      </div>
+      <form id="form-adicionar" class="form-adicionar">
+        <div class="field">
+          <label>Título</label>
+          <input id="add-titulo" type="text" required />
         </div>
-
-        <h2 class="card-title">{m.data.titulo}</h2>
-        <p class="card-artist">{m.data.artista}</p>
-
-        <div class="card-foot">
-          {m.data.tom && <span class="card-tom">{m.data.tom}</span>}
-          {(m.data.tags ?? []).slice(0, 3).map(tag => (
-            <span class="card-tag">#{tag}</span>
-          ))}
+        <div class="field">
+          <label>Artista</label>
+          <input id="add-artista" type="text" required />
         </div>
-      </a>
-    ))}
+        <div class="field-row">
+          <div class="field">
+            <label>Tom original</label>
+            <input id="add-tom-original" type="text" maxlength="3" placeholder="D" />
+          </div>
+          <div class="field">
+            <label>Meu tom</label>
+            <input id="add-tom" type="text" maxlength="3" placeholder="A" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Tags <span class="hint">(separadas por vírgula)</span></label>
+          <input id="add-tags" type="text" placeholder="mpb, dedilhado-simples" />
+        </div>
+        <div class="field">
+          <label>Link YouTube <span class="hint">(opcional)</span></label>
+          <input id="add-youtube" type="text" placeholder="https://youtube.com/watch?v=..." />
+        </div>
+        <p id="add-error" class="login-error" style="display:none;"></p>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancelar-add" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" id="btn-add-submit" class="btn btn-accent">Adicionar</button>
+        </div>
+      </form>
+    </div>
   </div>
 </Base>
 
-<style>
-  .page-head {
-    margin-bottom: 1.5rem;
-  }
-  .page-title {
-    font-family: var(--font-display);
-    font-weight: 500;
-    font-size: clamp(1.8rem, 4vw, 2.6rem);
-    color: var(--ink);
-    letter-spacing: -0.01em;
-  }
-  .page-sub {
-    font-style: italic;
-    color: var(--ink-soft);
-    font-size: 0.95rem;
-  }
-
-  .card-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-    gap: 1rem;
-  }
-
-  .music-card {
-    display: flex;
-    flex-direction: column;
-    background: var(--bg-tint);
-    border: 1px solid var(--paper-line);
-    border-radius: 6px;
-    padding: 0.9rem 1rem 1rem;
-    box-shadow: 0 2px 8px var(--shadow);
-    text-decoration: none;
-    color: inherit;
-    transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
-  }
-  .music-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px var(--shadow);
-    border-color: var(--accent-soft);
-  }
-
-  .card-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    margin-bottom: 0.6rem;
-  }
-  .card-title {
-    font-family: var(--font-display);
-    font-weight: 500;
-    font-size: 1.15rem;
-    line-height: 1.2;
-    color: var(--ink);
-    margin-bottom: 0.15rem;
-  }
-  .card-artist {
-    font-style: italic;
-    font-size: 0.85rem;
-    color: var(--ink-soft);
-    margin-bottom: 0.7rem;
-  }
-  .card-foot {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    align-items: center;
-    margin-top: auto;
-  }
-  .card-tom {
-    font-family: var(--font-mono);
-    font-weight: 600;
-    font-size: 0.75rem;
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 8%, transparent);
-    padding: 0.05rem 0.4rem;
-    border-radius: 3px;
-  }
-  .card-tag {
-    font-family: var(--font-serif);
-    font-style: italic;
-    font-size: 0.75rem;
-    color: var(--ink-soft);
-    opacity: 0.7;
-  }
-</style>
-
 <script>
-  import { getLang } from '../lib/i18n.js';
+  // ── Estado ────────────────────────────────────────────────────────────────────
+  let todasMusicas: any[] = [];
+  let favoritos = new Set<string>();
+  let filtroBusca = '';
+  let filtroTag = '';
+  let filtroArtista = '';
+  let filtroFavoritos = false;
+  let filtroOrdem = 'recentes';
+  let cifraParaAdicionar: any = null;
 
-  function updateSongsCount() {
-    const el = document.querySelector<HTMLElement>('.songs-count');
-    if (!el) return;
-    const n = Number(el.dataset['total'] ?? 0);
-    const lang = getLang();
-    const word = lang === 'pt' ? (n !== 1 ? 'músicas' : 'música') : (n !== 1 ? 'songs' : 'song');
-    el.textContent = `${n} ${word}`;
+  // ── Fetch dados ───────────────────────────────────────────────────────────────
+  async function carregarMusicas() {
+    const [musicasRes, favRes] = await Promise.all([
+      fetch('/api/musicas'),
+      fetch('/api/favoritos'),
+    ]);
+    todasMusicas = await musicasRes.json();
+    const favSlugs: string[] = await favRes.json();
+    favoritos = new Set(favSlugs);
+    renderTags();
+    renderArtistas();
+    aplicarFiltros();
   }
 
-  updateSongsCount();
-  document.addEventListener('gm:lang-change', updateSongsCount);
+  async function carregarRecentes() {
+    try {
+      const res = await fetch('/api/historico');
+      const recentes: any[] = await res.json();
+      if (!recentes.length) return;
+      const section = document.getElementById('recentes-section')!;
+      const grid = document.getElementById('recentes-grid')!;
+      grid.innerHTML = recentes.map(m => `
+        <a href="/musica/${m.slug}" class="recente-card">
+          <span class="recente-titulo">${m.titulo}</span>
+          <span class="recente-artista">${m.artista}</span>
+        </a>
+      `).join('');
+      section.style.display = '';
+    } catch {}
+  }
+
+  // ── Render tags ───────────────────────────────────────────────────────────────
+  function renderTags() {
+    const tagCount: Record<string, number> = {};
+    todasMusicas.forEach(m => (m.tags || []).forEach((t: string) => { tagCount[t] = (tagCount[t] || 0) + 1; }));
+    const sorted = Object.entries(tagCount).sort((a, b) => b[1] - a[1]);
+    const container = document.getElementById('tags-container')!;
+    container.innerHTML = sorted.map(([tag, count]) => `
+      <button class="btn filtro-tag" data-tag="${tag}" aria-pressed="${tag === filtroTag}" type="button">${tag} <span class="tag-count">(${count})</span></button>
+    `).join('');
+    container.querySelectorAll<HTMLElement>('.filtro-tag').forEach(btn => {
+      btn.addEventListener('click', () => {
+        filtroTag = filtroTag === btn.dataset['tag'] ? '' : (btn.dataset['tag'] || '');
+        aplicarFiltros();
+      });
+    });
+  }
+
+  function renderArtistas() {
+    const artistas = [...new Set(todasMusicas.map(m => m.artista))].sort((a, b) => a.localeCompare(b, 'pt'));
+    const sel = document.getElementById('filtro-artista') as HTMLSelectElement;
+    sel.innerHTML = `<option value="">Todos</option>` + artistas.map(a => `<option value="${a}">${a}</option>`).join('');
+    if (filtroArtista) sel.value = filtroArtista;
+  }
+
+  // ── Toggle favorito ───────────────────────────────────────────────────────────
+  async function toggleFavorito(slug: string, btn: HTMLElement) {
+    const isFav = favoritos.has(slug);
+    const method = isFav ? 'DELETE' : 'POST';
+    await fetch(`/api/favoritos/${slug}`, { method });
+    if (isFav) { favoritos.delete(slug); } else { favoritos.add(slug); }
+    btn.textContent = favoritos.has(slug) ? '❤️' : '♡';
+    btn.setAttribute('data-favorito', String(favoritos.has(slug)));
+    if (filtroFavoritos) aplicarFiltros();
+  }
+
+  // ── Render cards ──────────────────────────────────────────────────────────────
+  function renderCard(m: any): string {
+    const isFav = favoritos.has(m.slug);
+    const tags = (m.tags || []).slice(0, 3).map((t: string) => `<a class="card-tag" href="/?tag=${encodeURIComponent(t)}">#${t}</a>`).join('');
+    const novoBadge = m.adicionado_por ? `<span class="card-novo">novo</span>` : '';
+    return `
+      <div class="music-card-wrap" data-slug="${m.slug}" data-titulo="${m.titulo.toLowerCase()}" data-artista="${m.artista.toLowerCase()}" data-tags="${(m.tags || []).join(',')}">
+        <a href="/musica/${m.slug}" class="music-card">
+          <div class="card-top">
+            <span class="card-heart" data-slug="${m.slug}" data-favorito="${isFav}">${isFav ? '❤️' : '♡'}</span>
+            ${novoBadge}
+          </div>
+          <h2 class="card-title">${m.titulo}</h2>
+          <p class="card-artist"><a class="artist-link" data-artista="${m.artista}" href="/?artista=${encodeURIComponent(m.artista)}">${m.artista}</a></p>
+          <div class="card-foot">
+            ${m.tom ? `<span class="card-tom">${m.tom}</span>` : ''}
+            ${tags}
+          </div>
+        </a>
+      </div>
+    `;
+  }
+
+  // ── Aplicar filtros ───────────────────────────────────────────────────────────
+  function aplicarFiltros() {
+    // Filtrar
+    let filtradas = todasMusicas.filter(m => {
+      const q = filtroBusca.toLowerCase().trim();
+      // Busca por acorde: "acorde: Bm"
+      const acordeMatch = q.match(/^acorde:\s*(.+)$/i);
+      if (acordeMatch) {
+        const acorde = acordeMatch[1].trim().toLowerCase();
+        return (m.cifra_acordes || '').toLowerCase().includes(acorde) ||
+          (Array.isArray(m.tags) && false); // chord matching via API field if available
+      }
+      if (q && !m.titulo.toLowerCase().includes(q) && !m.artista.toLowerCase().includes(q)) return false;
+      if (filtroTag && !(m.tags || []).includes(filtroTag)) return false;
+      if (filtroArtista && m.artista !== filtroArtista) return false;
+      if (filtroFavoritos && !favoritos.has(m.slug)) return false;
+      return true;
+    });
+
+    // Ordenar
+    if (filtroOrdem === 'az') {
+      filtradas.sort((a, b) => a.titulo.localeCompare(b.titulo, 'pt'));
+    } else if (filtroOrdem === 'artista') {
+      filtradas.sort((a, b) => a.artista.localeCompare(b.artista, 'pt'));
+    }
+    // 'recentes' = já vem da API ordenado por created_at DESC
+
+    // Render
+    const grid = document.getElementById('card-grid')!;
+    grid.innerHTML = filtradas.map(renderCard).join('');
+
+    // Bind heart clicks (interceptar antes do link)
+    grid.querySelectorAll<HTMLElement>('.card-heart').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleFavorito(btn.dataset['slug']!, btn);
+      });
+    });
+
+    // Bind artist links
+    grid.querySelectorAll<HTMLElement>('.artist-link').forEach(a => {
+      a.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        filtroArtista = (a as any).dataset['artista'] || '';
+        (document.getElementById('filtro-artista') as HTMLSelectElement).value = filtroArtista;
+        aplicarFiltros();
+      });
+    });
+
+    // Count
+    const countEl = document.getElementById('songs-count')!;
+    countEl.textContent = `${filtradas.length} música${filtradas.length !== 1 ? 's' : ''}`;
+
+    // Sync UI
+    document.querySelectorAll<HTMLElement>('.filtro-tag').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset['tag'] === filtroTag));
+    });
+    document.querySelectorAll<HTMLElement>('.filtro-ordem').forEach(btn => {
+      btn.setAttribute('aria-pressed', String(btn.dataset['ordem'] === filtroOrdem));
+    });
+    (document.getElementById('filtro-favoritos') as HTMLElement).setAttribute('data-ativo', String(filtroFavoritos));
+
+    // Banner CifraClub
+    const banner = document.getElementById('cifraclub-banner')!;
+    const buscaAtiva = filtroBusca.trim().length > 0;
+    banner.style.display = (buscaAtiva && filtradas.length === 0) ? '' : 'none';
+  }
+
+  // ── Leitura de URL params ─────────────────────────────────────────────────────
+  function lerUrl() {
+    const p = new URLSearchParams(location.search);
+    filtroBusca = p.get('q') || '';
+    filtroTag = p.get('tag') || '';
+    filtroArtista = p.get('artista') || '';
+    if (filtroBusca) (document.getElementById('filtro-busca') as HTMLInputElement).value = filtroBusca;
+    if (filtroArtista) (document.getElementById('filtro-artista') as HTMLSelectElement).value = filtroArtista;
+  }
+
+  function pushUrl() {
+    const p = new URLSearchParams();
+    if (filtroBusca) p.set('q', filtroBusca);
+    if (filtroTag) p.set('tag', filtroTag);
+    if (filtroArtista) p.set('artista', filtroArtista);
+    const qs = p.toString();
+    history.replaceState(null, '', qs ? `?${qs}` : location.pathname);
+  }
+
+  // ── Eventos filtros ───────────────────────────────────────────────────────────
+  document.getElementById('filtro-busca')?.addEventListener('input', e => {
+    filtroBusca = (e.target as HTMLInputElement).value;
+    pushUrl();
+    aplicarFiltros();
+  });
+  document.getElementById('filtro-artista')?.addEventListener('change', e => {
+    filtroArtista = (e.target as HTMLSelectElement).value;
+    pushUrl();
+    aplicarFiltros();
+  });
+  document.getElementById('filtro-favoritos')?.addEventListener('click', () => {
+    filtroFavoritos = !filtroFavoritos;
+    aplicarFiltros();
+  });
+  document.querySelectorAll<HTMLElement>('.filtro-ordem').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filtroOrdem = btn.dataset['ordem'] || 'recentes';
+      aplicarFiltros();
+    });
+  });
+  document.getElementById('filtro-limpar')?.addEventListener('click', () => {
+    filtroBusca = ''; filtroTag = ''; filtroArtista = ''; filtroFavoritos = false; filtroOrdem = 'recentes';
+    (document.getElementById('filtro-busca') as HTMLInputElement).value = '';
+    (document.getElementById('filtro-artista') as HTMLSelectElement).value = '';
+    pushUrl();
+    aplicarFiltros();
+  });
+
+  // ── CifraClub: busca ──────────────────────────────────────────────────────────
+  document.getElementById('btn-buscar-cifraclub')?.addEventListener('click', async () => {
+    const q = filtroBusca.trim();
+    if (!q) return;
+    const btn = document.getElementById('btn-buscar-cifraclub') as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = 'Buscando…';
+
+    try {
+      const res = await fetch(`/api/cifraclub/search?q=${encodeURIComponent(q)}`);
+      const resultados: any[] = await res.json();
+
+      const lista = document.getElementById('resultados-lista')!;
+      if (!resultados.length) {
+        lista.innerHTML = '<p class="empty-msg">Nenhum resultado encontrado no CifraClub.</p>';
+      } else {
+        lista.innerHTML = resultados.map((r, i) => `
+          <button class="resultado-item" data-url="${r.url}" data-i="${i}" type="button">
+            <span class="res-titulo">${r.titulo}</span>
+            <span class="res-artista">${r.artista || ''}</span>
+          </button>
+        `).join('');
+        lista.querySelectorAll<HTMLElement>('.resultado-item').forEach(item => {
+          item.addEventListener('click', () => selecionarResultado(item.dataset['url']!));
+        });
+      }
+
+      document.getElementById('modal-resultados')!.style.display = '';
+    } catch (err: any) {
+      alert('Erro ao buscar: ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Buscar no CifraClub';
+    }
+  });
+
+  async function selecionarResultado(url: string) {
+    document.getElementById('modal-resultados')!.style.display = 'none';
+    const loadMsg = document.createElement('div');
+    loadMsg.id = 'loading-msg';
+    loadMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-tint);border:1px solid var(--paper-line);padding:1.5rem 2rem;border-radius:8px;z-index:999;font-style:italic;color:var(--ink-soft);';
+    loadMsg.textContent = 'Buscando cifra e sugerindo tags…';
+    document.body.appendChild(loadMsg);
+
+    try {
+      const res = await fetch(`/api/cifraclub/fetch?url=${encodeURIComponent(url)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      cifraParaAdicionar = data;
+      preencherModalAdicionar(data);
+      document.getElementById('modal-confirmar')!.style.display = '';
+    } catch (err: any) {
+      alert('Erro ao buscar cifra: ' + err.message);
+    } finally {
+      loadMsg.remove();
+    }
+  }
+
+  function preencherModalAdicionar(data: any) {
+    (document.getElementById('add-titulo') as HTMLInputElement).value = data.titulo || '';
+    (document.getElementById('add-artista') as HTMLInputElement).value = data.artista || '';
+    (document.getElementById('add-tom-original') as HTMLInputElement).value = data.tomOriginal || '';
+    (document.getElementById('add-tags') as HTMLInputElement).value = (data.tags_sugeridas || []).join(', ');
+    (document.getElementById('add-youtube') as HTMLInputElement).value = '';
+  }
+
+  document.getElementById('form-adicionar')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-add-submit') as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = 'Adicionando…';
+    const errorEl = document.getElementById('add-error') as HTMLElement;
+    errorEl.style.display = 'none';
+
+    try {
+      const payload = {
+        titulo: (document.getElementById('add-titulo') as HTMLInputElement).value,
+        artista: (document.getElementById('add-artista') as HTMLInputElement).value,
+        tom: (document.getElementById('add-tom') as HTMLInputElement).value,
+        tom_original: (document.getElementById('add-tom-original') as HTMLInputElement).value,
+        tags: (document.getElementById('add-tags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(Boolean),
+        cifra: cifraParaAdicionar?.cifra || '',
+        link_cifraclub: cifraParaAdicionar?.url || '',
+        link_youtube: (document.getElementById('add-youtube') as HTMLInputElement).value,
+      };
+
+      const res = await fetch('/api/musicas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      document.getElementById('modal-confirmar')!.style.display = 'none';
+      window.location.href = `/musica/${data.slug}`;
+    } catch (err: any) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Adicionar';
+    }
+  });
+
+  // Fechar modais
+  document.getElementById('btn-fechar-resultados')?.addEventListener('click', () => { document.getElementById('modal-resultados')!.style.display = 'none'; });
+  document.getElementById('btn-fechar-confirmar')?.addEventListener('click', () => { document.getElementById('modal-confirmar')!.style.display = 'none'; });
+  document.getElementById('btn-cancelar-add')?.addEventListener('click', () => { document.getElementById('modal-confirmar')!.style.display = 'none'; });
+
+  // ── Init ──────────────────────────────────────────────────────────────────────
+  lerUrl();
+  carregarMusicas();
+  carregarRecentes();
 </script>
+
+<style>
+  .page-head { margin-bottom: 1.5rem; }
+  .page-title { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.8rem, 4vw, 2.6rem); color: var(--ink); letter-spacing: -0.01em; }
+  .page-sub { font-style: italic; color: var(--ink-soft); font-size: 0.95rem; }
+  .section-label { font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1rem; color: var(--ink-soft); margin-bottom: 0.75rem; }
+
+  .recentes-grid { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+  .recente-card { display: flex; flex-direction: column; padding: 0.5rem 0.9rem; background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 5px; text-decoration: none; color: inherit; transition: border-color 0.15s; min-width: 8rem; }
+  .recente-card:hover { border-color: var(--accent-soft); }
+  .recente-titulo { font-family: var(--font-display); font-size: 0.9rem; color: var(--ink); }
+  .recente-artista { font-style: italic; font-size: 0.75rem; color: var(--ink-soft); }
+
+  .filtros { margin-bottom: 1.5rem; }
+  .busca-wrap { position: relative; }
+  .filtro-busca-input { width: 20rem; }
+  .btn-row { display: flex; gap: 2px; flex-wrap: wrap; }
+  .tag-count { font-size: 0.7em; opacity: 0.6; }
+
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
+  .music-card { display: flex; flex-direction: column; background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 6px; padding: 0.9rem 1rem 1rem; box-shadow: 0 2px 8px var(--shadow); text-decoration: none; color: inherit; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; height: 100%; }
+  .music-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px var(--shadow); border-color: var(--accent-soft); }
+  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+  .card-heart { font-size: 1.1rem; cursor: pointer; padding: 0.1rem 0.3rem; border-radius: 3px; opacity: 0.5; transition: opacity 0.15s; line-height: 1; }
+  .card-heart:hover, .card-heart[data-favorito="true"] { opacity: 1; }
+  .card-novo { font-family: var(--font-mono); font-size: 0.65rem; background: var(--accent); color: var(--bg); padding: 0.1rem 0.4rem; border-radius: 3px; }
+  .card-title { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; line-height: 1.2; color: var(--ink); margin-bottom: 0.15rem; }
+  .card-artist { font-style: italic; font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 0.7rem; }
+  .artist-link { color: inherit; text-decoration: none; }
+  .artist-link:hover { color: var(--accent); }
+  .card-foot { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: auto; }
+  .card-tom { font-family: var(--font-mono); font-weight: 600; font-size: 0.75rem; color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); padding: 0.05rem 0.4rem; border-radius: 3px; }
+  .card-tag { font-family: var(--font-serif); font-style: italic; font-size: 0.75rem; color: var(--ink-soft); opacity: 0.7; text-decoration: none; }
+  .card-tag:hover { opacity: 1; color: var(--accent); }
+
+  #filtro-favoritos[data-ativo="true"] { background: color-mix(in srgb, #e74c3c 12%, transparent); border-color: #e74c3c; color: #c0392b; }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--ink-soft); }
+  .btn-ghost:hover { color: var(--accent); }
+  .btn-accent { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn-accent:hover { opacity: 0.85; }
+
+  .cifraclub-banner { text-align: center; padding: 2rem; border: 1px dashed var(--paper-line); border-radius: 6px; color: var(--ink-soft); font-style: italic; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+
+  /* Modais */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; }
+  .modal-box { background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 8px; width: 100%; max-width: 28rem; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--paper-line); }
+  .modal-title { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; }
+  .modal-close { background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--ink-soft); padding: 0.2rem 0.4rem; }
+  .resultados-lista { display: flex; flex-direction: column; padding: 0.5rem; }
+  .resultado-item { display: flex; flex-direction: column; text-align: left; padding: 0.75rem 1rem; border: none; background: none; cursor: pointer; border-radius: 5px; transition: background 0.1s; }
+  .resultado-item:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+  .res-titulo { font-family: var(--font-display); font-weight: 500; color: var(--ink); }
+  .res-artista { font-style: italic; font-size: 0.85rem; color: var(--ink-soft); }
+  .empty-msg { padding: 1rem; text-align: center; color: var(--ink-soft); font-style: italic; }
+
+  .form-adicionar { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .field label { font-size: 0.85rem; color: var(--ink-soft); font-style: italic; }
+  .hint { font-size: 0.75em; opacity: 0.7; }
+  .field input { padding: 0.5rem 0.7rem; border: 1px solid var(--paper-line); border-radius: 4px; background: var(--bg); color: var(--ink); font-family: var(--font-serif); font-size: 0.9rem; outline: none; }
+  .field input:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+  .login-error { color: #c0392b; font-size: 0.85rem; font-style: italic; margin: 0; }
+
+  .music-card-wrap { display: contents; }
+  @media (max-width: 700px) { .filtro-busca-input { width: 100%; } }
+</style>

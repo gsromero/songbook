@@ -1,0 +1,146 @@
+---
+import '../styles/global.css';
+---
+
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Entrar — Songbook</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script is:inline>
+      try {
+        var theme = localStorage.getItem('gm:theme');
+        if (theme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+      } catch(e) {}
+    </script>
+  </head>
+  <body class="login-body">
+    <div class="login-card">
+      <div class="login-brand">🎸 Songbook</div>
+      <h1 class="login-title">Entrar</h1>
+
+      <form id="login-form" class="login-form" autocomplete="on">
+        <div class="field">
+          <label for="username">Usuário</label>
+          <input id="username" name="username" type="text" autocomplete="username" required autofocus />
+        </div>
+        <div class="field">
+          <label for="password">Senha</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+        </div>
+        <p id="login-error" class="login-error" style="display:none"></p>
+        <button type="submit" class="btn-login" id="btn-submit">Entrar</button>
+      </form>
+    </div>
+
+    <script>
+      const form = document.getElementById('login-form') as HTMLFormElement;
+      const errorEl = document.getElementById('login-error') as HTMLElement;
+      const btn = document.getElementById('btn-submit') as HTMLButtonElement;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorEl.style.display = 'none';
+        btn.disabled = true;
+        btn.textContent = '…';
+
+        const username = (form.querySelector('#username') as HTMLInputElement).value;
+        const password = (form.querySelector('#password') as HTMLInputElement).value;
+
+        try {
+          const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password }),
+          });
+          const data = await res.json();
+          if (res.ok) {
+            window.location.href = '/';
+          } else {
+            errorEl.textContent = data.error || 'Credenciais inválidas';
+            errorEl.style.display = '';
+            btn.disabled = false;
+            btn.textContent = 'Entrar';
+          }
+        } catch {
+          errorEl.textContent = 'Erro de conexão';
+          errorEl.style.display = '';
+          btn.disabled = false;
+          btn.textContent = 'Entrar';
+        }
+      });
+    </script>
+
+    <style>
+      .login-body {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--bg);
+        font-family: var(--font-serif);
+      }
+      .login-card {
+        width: 100%;
+        max-width: 22rem;
+        padding: 2.5rem 2rem;
+        background: var(--bg-tint);
+        border: 1px solid var(--paper-line);
+        border-radius: 8px;
+        box-shadow: 0 4px 24px var(--shadow);
+      }
+      .login-brand {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: 1.3rem;
+        color: var(--ink);
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+      .login-title {
+        font-family: var(--font-display);
+        font-weight: 500;
+        font-size: 1.4rem;
+        color: var(--ink);
+        margin-bottom: 1.5rem;
+        text-align: center;
+      }
+      .login-form { display: flex; flex-direction: column; gap: 1rem; }
+      .field { display: flex; flex-direction: column; gap: 0.3rem; }
+      .field label { font-size: 0.85rem; color: var(--ink-soft); font-style: italic; }
+      .field input {
+        padding: 0.55rem 0.75rem;
+        border: 1px solid var(--paper-line);
+        border-radius: 4px;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--font-mono);
+        font-size: 0.9rem;
+        outline: none;
+        transition: border-color 0.15s;
+      }
+      .field input:focus { border-color: var(--accent); }
+      .login-error { color: #c0392b; font-size: 0.85rem; font-style: italic; margin: 0; }
+      .btn-login {
+        padding: 0.65rem;
+        background: var(--accent);
+        color: var(--bg);
+        border: none;
+        border-radius: 4px;
+        font-family: var(--font-serif);
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: opacity 0.15s;
+        margin-top: 0.5rem;
+      }
+      .btn-login:hover { opacity: 0.88; }
+      .btn-login:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+  </body>
+</html>
