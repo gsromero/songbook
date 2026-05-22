@@ -53,7 +53,7 @@ import Base from '../../layouts/Base.astro';
       </div>
       <div class="ctrl-group">
         <span class="ctrl-label">Colunas</span>
-        <div class="btn-row">
+        <div class="btn-row" style="gap: 0.3rem;">
           {[1,2,3,4].map(n => <button class="btn col-btn" data-cols={n} aria-pressed={n === 1} type="button">{n}</button>)}
         </div>
       </div>
@@ -270,8 +270,9 @@ import Base from '../../layouts/Base.astro';
 
   // ── Transpose ─────────────────────────────────────────────────────────────────
   let transposeOffset = 0;
+  let resetOffset = 0;    // offset para voltar ao tom_original
   let chordSvgs: Record<string,string> = {};
-  let baseTom = '';       // tom base da música (m.tom)
+  let baseTom = '';       // tom base da cifra (m.tom — key em que a cifra está escrita)
   let savedUserTom = '';  // tom salvo pelo usuário (m.user_tom)
 
   function offsetToReachKey(from: string, to: string): number {
@@ -440,11 +441,14 @@ import Base from '../../layouts/Base.astro';
       sections = parseCifra(m.cifra || '');
       baseTom = (FLAT_TO_SHARP[m.tom] ?? m.tom) || '';
       savedUserTom = (FLAT_TO_SHARP[m.user_tom] ?? m.user_tom) || '';
-      // Calcular offset para chegar ao tom salvo do usuário; fallback para user_transpose
+      const normTomOriginal = (FLAT_TO_SHARP[m.tom_original] ?? m.tom_original) || baseTom;
+      // Offset para o Reset: volta ao tom_original
+      resetOffset = baseTom && normTomOriginal ? offsetToReachKey(baseTom, normTomOriginal) : 0;
+      // Offset inicial: tom salvo pelo usuário (se houver) ou user_transpose
       if (baseTom && savedUserTom) {
         transposeOffset = offsetToReachKey(baseTom, savedUserTom);
       } else {
-        transposeOffset = m.user_transpose ?? 0;
+        transposeOffset = m.user_transpose ?? resetOffset;
       }
 
       // Preencher cabeçalho
@@ -520,7 +524,7 @@ import Base from '../../layouts/Base.astro';
   document.querySelectorAll<HTMLElement>('.transpose-btn').forEach(btn => {
     btn.addEventListener('click', () => { applyTranspose(transposeOffset + Number(btn.dataset['dir'])); });
   });
-  document.getElementById('btn-reset-transpose')?.addEventListener('click', () => applyTranspose(0));
+  document.getElementById('btn-reset-transpose')?.addEventListener('click', () => applyTranspose(resetOffset));
 
   document.querySelectorAll<HTMLElement>('.col-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -567,37 +571,22 @@ import Base from '../../layouts/Base.astro';
   .cifra-controls .btn-row { gap: 0.3rem; }
   .transpose-display {
     font-family: var(--font-mono);
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 700;
     color: var(--accent);
-    min-width: 2.8rem;
+    min-width: 2.4rem;
     text-align: center;
-    padding: 0.28rem 0.5rem;
+    padding: 0.35rem 0.65rem;
     background: color-mix(in srgb, var(--accent) 8%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
     border-radius: 3px;
+    line-height: 1;
   }
   .btn-salvar-tom { font-size: 0.8rem; padding: 0.28rem 0.6rem; color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
   .btn-salvar-tom:hover { background: var(--accent); color: var(--bg); }
   .tom-saved { font-size: 0.75rem; color: var(--accent); font-style: italic; padding: 0 0.2rem; }
 
-  /* Modo Prática — flashcards */
-  .pratica-seq { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
-  .pratica-card {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    background: var(--diagram-bg);
-    border: 1px solid var(--diagram-border);
-    border-radius: 6px;
-    padding: 0.4rem 0.5rem 0.5rem;
-    min-width: 3.5rem;
-    transition: border-color 0.15s;
-  }
-  .pratica-card:hover { border-color: var(--accent-soft); }
-  .pratica-chord-name { font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem; color: var(--chord); margin-bottom: 0.3rem; }
-  .pratica-chord-svg :global(svg) { width: 52px; height: auto; display: block; }
-  .pratica-chord-no-svg { font-size: 0.7rem; color: var(--ink-soft); font-style: italic; height: 60px; display: flex; align-items: center; }
+  /* Modo Prática — CSS em global.css (gerado via JS, não recebe atributo de escopo Astro) */
 
   .cifra-wrap { position: relative; }
   .acordes-section { margin-top: 2rem; padding: 1.2rem 1.4rem 1.6rem; background: var(--diagram-bg); border: 1px solid var(--diagram-border); border-radius: 6px; }

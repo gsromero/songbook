@@ -312,6 +312,53 @@ a {
   font-style: italic;
 }
 
+/* ========== Modo Prática — flashcards (gerado por JS, não pode ser scoped) ========== */
+
+.pratica-seq {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.pratica-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--diagram-bg);
+  border: 1px solid var(--diagram-border);
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem 0.5rem;
+  transition: border-color 0.15s;
+}
+.pratica-card:hover { border-color: var(--accent-soft); }
+
+.pratica-chord-name {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--chord);
+  margin-bottom: 0.3rem;
+}
+
+.pratica-chord-svg svg {
+  width: 52px;
+  height: auto;
+  display: block;
+  color: var(--ink);
+}
+
+.pratica-chord-no-svg {
+  width: 52px;
+  height: 68px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
 .chord {
   color: var(--chord);
   font-weight: 700;
