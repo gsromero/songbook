@@ -25,3 +25,8 @@ pnpm-debug.log*
 
 # generated at build time
 src/lib/chord-svgs.generated.json
+
+# banco de dados local (não versionar)
+db/*.db
+db/*.db-shm
+db/*.db-wal
