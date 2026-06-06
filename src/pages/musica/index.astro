@@ -18,6 +18,8 @@ import Base from '../../layouts/Base.astro';
         </div>
         <div class="musica-actions-row">
           <button id="btn-favorito" class="btn-heart" title="Favoritar" aria-label="Favoritar">♡</button>
+          <button id="btn-editar-musica" class="btn btn-small" type="button">Editar</button>
+          <button id="btn-apagar-musica" class="btn btn-small btn-danger" type="button">Apagar</button>
           <span id="m-adicionado-por" class="adicionado-por" style="display:none;"></span>
         </div>
       </div>
@@ -82,11 +84,62 @@ import Base from '../../layouts/Base.astro';
 
   </div>
   <div id="musica-error" style="display:none;text-align:center;padding:3rem;color:var(--ink-soft);font-style:italic;"></div>
+
+  <div id="modal-editar-musica" class="modal-overlay" style="display:none;">
+    <div class="modal-box modal-box-wide">
+      <div class="modal-header">
+        <span class="modal-title">Editar música</span>
+        <button class="modal-close" id="btn-fechar-editar" type="button">✕</button>
+      </div>
+      <form id="form-editar-musica" class="form-editar">
+        <div class="field">
+          <label>Título</label>
+          <input id="edit-titulo" type="text" required />
+        </div>
+        <div class="field">
+          <label>Artista</label>
+          <input id="edit-artista" type="text" required />
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Tom da cifra</label>
+            <input id="edit-tom" type="text" maxlength="3" placeholder="A" />
+          </div>
+          <div class="field">
+            <label>Tom original</label>
+            <input id="edit-tom-original" type="text" maxlength="3" placeholder="D" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Tags <span class="hint">(separadas por vírgula)</span></label>
+          <input id="edit-tags" type="text" placeholder="mpb, dedilhado-simples" />
+        </div>
+        <div class="field">
+          <label>Link CifraClub <span class="hint">(opcional)</span></label>
+          <input id="edit-link-cifraclub" type="url" placeholder="https://www.cifraclub.com.br/artista/musica/" />
+        </div>
+        <div class="field">
+          <label>Link YouTube <span class="hint">(opcional)</span></label>
+          <input id="edit-link-youtube" type="url" placeholder="https://youtube.com/watch?v=..." />
+        </div>
+        <div class="field">
+          <label>Cifra</label>
+          <textarea id="edit-cifra" required rows="16" spellcheck="false"></textarea>
+        </div>
+        <p id="edit-error" class="login-error" style="display:none;"></p>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancelar-editar" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" id="btn-salvar-editar" class="btn btn-accent">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </Base>
 
 <script>
   // ── Slug da URL ───────────────────────────────────────────────────────────────
   const slug = window.location.pathname.replace(/^\/musica\//, '').replace(/\/$/, '');
+  let currentMusica: any = null;
 
   // ── Constantes de transpose ───────────────────────────────────────────────────
   const NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -417,6 +470,90 @@ import Base from '../../layouts/Base.astro';
     setFavorito(!isFavorito);
   });
 
+  function abrirModalEditar() {
+    if (!currentMusica) return;
+    (document.getElementById('edit-titulo') as HTMLInputElement).value = currentMusica.titulo || '';
+    (document.getElementById('edit-artista') as HTMLInputElement).value = currentMusica.artista || '';
+    (document.getElementById('edit-tom') as HTMLInputElement).value = currentMusica.tom || '';
+    (document.getElementById('edit-tom-original') as HTMLInputElement).value = currentMusica.tom_original || '';
+    (document.getElementById('edit-tags') as HTMLInputElement).value = (currentMusica.tags || []).join(', ');
+    (document.getElementById('edit-link-cifraclub') as HTMLInputElement).value = currentMusica.link_cifraclub || '';
+    (document.getElementById('edit-link-youtube') as HTMLInputElement).value = currentMusica.link_youtube || '';
+    (document.getElementById('edit-cifra') as HTMLTextAreaElement).value = currentMusica.cifra || '';
+    const errorEl = document.getElementById('edit-error') as HTMLElement;
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
+    const btn = document.getElementById('btn-salvar-editar') as HTMLButtonElement;
+    btn.disabled = false;
+    btn.textContent = 'Salvar';
+    document.getElementById('modal-editar-musica')!.style.display = '';
+  }
+
+  function fecharModalEditar() {
+    document.getElementById('modal-editar-musica')!.style.display = 'none';
+  }
+
+  document.getElementById('btn-editar-musica')?.addEventListener('click', abrirModalEditar);
+  document.getElementById('btn-fechar-editar')?.addEventListener('click', fecharModalEditar);
+  document.getElementById('btn-cancelar-editar')?.addEventListener('click', fecharModalEditar);
+
+  document.getElementById('form-editar-musica')?.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-salvar-editar') as HTMLButtonElement;
+    const errorEl = document.getElementById('edit-error') as HTMLElement;
+    btn.disabled = true;
+    btn.textContent = 'Salvando...';
+    errorEl.style.display = 'none';
+
+    try {
+      const payload = {
+        titulo: (document.getElementById('edit-titulo') as HTMLInputElement).value.trim(),
+        artista: (document.getElementById('edit-artista') as HTMLInputElement).value.trim(),
+        tom: (document.getElementById('edit-tom') as HTMLInputElement).value.trim(),
+        tom_original: (document.getElementById('edit-tom-original') as HTMLInputElement).value.trim(),
+        tags: (document.getElementById('edit-tags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(Boolean),
+        cifra: (document.getElementById('edit-cifra') as HTMLTextAreaElement).value,
+        link_cifraclub: (document.getElementById('edit-link-cifraclub') as HTMLInputElement).value.trim(),
+        link_youtube: (document.getElementById('edit-link-youtube') as HTMLInputElement).value.trim(),
+      };
+
+      const res = await fetch(`/api/musicas/${slug}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao salvar musica');
+      window.location.reload();
+    } catch (err: any) {
+      errorEl.textContent = err.message || 'Erro ao salvar musica';
+      errorEl.style.display = '';
+      btn.disabled = false;
+      btn.textContent = 'Salvar';
+    }
+  });
+
+  document.getElementById('btn-apagar-musica')?.addEventListener('click', async () => {
+    if (!currentMusica) return;
+    const ok = confirm(`Apagar "${currentMusica.titulo}"? Esta ação não pode ser desfeita.`);
+    if (!ok) return;
+
+    const btn = document.getElementById('btn-apagar-musica') as HTMLButtonElement;
+    btn.disabled = true;
+    btn.textContent = 'Apagando...';
+
+    try {
+      const res = await fetch(`/api/musicas/${slug}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao apagar musica');
+      window.location.href = '/';
+    } catch (err: any) {
+      alert(err.message || 'Erro ao apagar musica');
+      btn.disabled = false;
+      btn.textContent = 'Apagar';
+    }
+  });
+
   // ── Salvar meu tom ────────────────────────────────────────────────────────────
   document.getElementById('btn-salvar-tom')?.addEventListener('click', async () => {
     const key = currentKey();
@@ -447,6 +584,7 @@ import Base from '../../layouts/Base.astro';
       const res = await fetch(`/api/musicas/${slug}`);
       if (!res.ok) throw new Error('Música não encontrada');
       const m = await res.json();
+      currentMusica = m;
 
       chordSvgs = m.chord_svgs || {};
       sections = parseCifra(m.cifra || '');
@@ -565,6 +703,9 @@ import Base from '../../layouts/Base.astro';
   .musica-actions-row { display: flex; align-items: center; gap: 0.75rem; }
   .btn-heart { background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 0; opacity: 0.5; transition: opacity 0.15s, transform 0.15s; }
   .btn-heart:hover { opacity: 1; transform: scale(1.2); }
+  .btn-small { font-size: 0.78rem; padding: 0.28rem 0.62rem; }
+  .btn-danger { color: #b43b2f; border-color: color-mix(in srgb, #b43b2f 40%, var(--paper-line)); background: color-mix(in srgb, #b43b2f 7%, transparent); }
+  .btn-danger:hover { color: var(--bg); background: #b43b2f; border-color: #b43b2f; }
   .adicionado-por { font-size: 0.75rem; font-style: italic; color: var(--ink-soft); opacity: 0.6; }
 
   .musica-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.75rem; }
@@ -610,4 +751,31 @@ import Base from '../../layouts/Base.astro';
   .recente-card:hover { border-color: var(--accent-soft); }
   .recente-titulo { font-family: var(--font-display); font-size: 0.9rem; color: var(--ink); }
   .recente-artista { font-style: italic; font-size: 0.75rem; color: var(--ink-soft); }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 1rem; }
+  .modal-box { background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 10px; width: min(100%, 34rem); max-height: 88vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .modal-box-wide { width: min(100%, 42rem); }
+  .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--paper-line); }
+  .modal-title { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; color: var(--ink); }
+  .modal-close { background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--ink-soft); padding: 0.2rem 0.4rem; }
+  .modal-close:hover { color: var(--accent); }
+  .form-editar { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; }
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .field label { font-size: 0.85rem; color: var(--ink-soft); font-style: italic; }
+  .hint { font-size: 0.75em; opacity: 0.7; }
+  .field input, .field textarea { padding: 0.55rem 0.7rem; border: 1px solid var(--paper-line); border-radius: 5px; background: var(--bg); color: var(--ink); font-family: var(--font-serif); font-size: 0.9rem; outline: none; }
+  .field textarea { min-height: 18rem; resize: vertical; line-height: 1.45; font-family: var(--font-mono); }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
+  .btn-accent { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .btn-accent:hover { opacity: 0.85; }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--ink-soft); }
+  .btn-ghost:hover { color: var(--accent); }
+  .login-error { color: #c0392b; font-size: 0.85rem; font-style: italic; margin: 0; }
+
+  @media (max-width: 640px) {
+    .field-row { grid-template-columns: 1fr; }
+    .musica-actions-row { gap: 0.45rem; flex-wrap: wrap; }
+  }
 </style>

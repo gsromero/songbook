@@ -258,6 +258,28 @@ function parseMusica(row) {
   };
 }
 
+async function getMusicaBySlug(c, userId, slug) {
+  const row = await c.env.DB.prepare(
+    `
+    SELECT m.*,
+      CASE WHEN f.user_id IS NOT NULL THEN 1 ELSE 0 END as favorito,
+      ut.tom as user_tom,
+      utr.offset as user_transpose,
+      u.username as adicionado_por_username
+    FROM musicas m
+    LEFT JOIN favoritos f ON f.musica_slug = m.slug AND f.user_id = ?
+    LEFT JOIN user_tom ut ON ut.musica_slug = m.slug AND ut.user_id = ?
+    LEFT JOIN user_transpose utr ON utr.musica_slug = m.slug AND utr.user_id = ?
+    LEFT JOIN users u ON u.id = m.adicionado_por
+    WHERE m.slug = ?
+  `,
+  )
+    .bind(userId, userId, userId, slug)
+    .first();
+
+  return row ? parseMusica(row) : null;
+}
+
 function toName(slug) {
   return slug
     .split('-')
@@ -495,6 +517,68 @@ app.post('/musicas', async (c) => {
     .run();
 
   return c.json({ ok: true, slug });
+});
+
+app.put('/musicas/:slug', async (c) => {
+  const userId = c.get('userId');
+  const slug = c.req.param('slug');
+  const existing = await c.env.DB.prepare('SELECT * FROM musicas WHERE slug = ?').bind(slug).first();
+  if (!existing) return jsonError(c, 404, 'Musica nao encontrada');
+
+  const body = await readJson(c);
+  const titulo = body.titulo ?? existing.titulo;
+  const artista = body.artista ?? existing.artista;
+  const cifra = body.cifra ?? existing.cifra;
+  if (!titulo || !artista || !cifra) return jsonError(c, 400, 'Titulo, artista e cifra sao obrigatorios');
+
+  const chords = extractChordsFromCifra(cifra);
+  const chordSvgs = generateChordSVGs(chords);
+
+  await c.env.DB.prepare(
+    `
+    UPDATE musicas
+    SET titulo = ?,
+        artista = ?,
+        tom = ?,
+        tom_original = ?,
+        tags = ?,
+        cifra = ?,
+        chord_svgs = ?,
+        link_cifraclub = ?,
+        link_youtube = ?
+    WHERE slug = ?
+  `,
+  )
+    .bind(
+      titulo,
+      artista,
+      body.tom || null,
+      body.tom_original || null,
+      JSON.stringify(Array.isArray(body.tags) ? body.tags : safeJsonParse(existing.tags, [])),
+      cifra,
+      JSON.stringify(chordSvgs),
+      body.link_cifraclub || '',
+      body.link_youtube || '',
+      slug,
+    )
+    .run();
+
+  const updated = await getMusicaBySlug(c, userId, slug);
+  return c.json(updated);
+});
+
+app.delete('/musicas/:slug', async (c) => {
+  const slug = c.req.param('slug');
+  const existing = await c.env.DB.prepare('SELECT slug FROM musicas WHERE slug = ?').bind(slug).first();
+  if (!existing) return jsonError(c, 404, 'Musica nao encontrada');
+
+  await c.env.DB.prepare('DELETE FROM favoritos WHERE musica_slug = ?').bind(slug).run();
+  await c.env.DB.prepare('DELETE FROM user_tom WHERE musica_slug = ?').bind(slug).run();
+  await c.env.DB.prepare('DELETE FROM user_transpose WHERE musica_slug = ?').bind(slug).run();
+  await c.env.DB.prepare('DELETE FROM historico WHERE musica_slug = ?').bind(slug).run();
+  await c.env.DB.prepare('DELETE FROM musicas WHERE slug = ?').bind(slug).run();
+
+  return c.json({ ok: true });
 });
 
 app.get('/musicas/:slug/similares', async (c) => {
