@@ -217,7 +217,7 @@ import Base from '../layouts/Base.astro';
     const novoBadge = m.adicionado_por ? `<span class="card-novo">novo</span>` : '';
     return `
       <div class="music-card-wrap" data-slug="${m.slug}" data-titulo="${m.titulo.toLowerCase()}" data-artista="${m.artista.toLowerCase()}" data-tags="${(m.tags || []).join(',')}">
-        <a href="/musica/${m.slug}" class="music-card">
+        <div class="music-card" role="link" tabindex="0" data-href="/musica/${m.slug}">
           <div class="card-top">
             <span class="card-status">${novoBadge}</span>
             <span class="card-heart" data-slug="${m.slug}" data-favorito="${isFav}" role="button" aria-label="Favoritar ${m.titulo}" title="Favoritar">${isFav ? '❤️' : '♡'}</span>
@@ -230,7 +230,7 @@ import Base from '../layouts/Base.astro';
             ${m.tom ? `<span class="card-tom">${m.tom}</span>` : ''}
             ${tags ? `<span class="card-tags">${tags}</span>` : ''}
           </div>
-        </a>
+        </div>
       </div>
     `;
   }
@@ -265,6 +265,21 @@ import Base from '../layouts/Base.astro';
     // Render
     const grid = document.getElementById('card-grid')!;
     grid.innerHTML = filtradas.map(renderCard).join('');
+
+    // Navegação do card (é <div>, não <a>, para evitar <a> aninhado inválido)
+    grid.querySelectorAll<HTMLElement>('.music-card').forEach(card => {
+      card.addEventListener('click', e => {
+        if ((e.target as HTMLElement).closest('a, .card-heart')) return;
+        const href = card.dataset['href'];
+        if (href) window.location.href = href;
+      });
+      card.addEventListener('keydown', e => {
+        if ((e as KeyboardEvent).key === 'Enter') {
+          const href = card.dataset['href'];
+          if (href) window.location.href = href;
+        }
+      });
+    });
 
     // Bind heart clicks (interceptar antes do link)
     grid.querySelectorAll<HTMLElement>('.card-heart').forEach(btn => {
@@ -575,7 +590,7 @@ import Base from '../layouts/Base.astro';
   .filtro-count { margin-left: auto; font-style: italic; white-space: nowrap; }
 
   .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 1rem; align-items: stretch; }
-  .music-card { display: flex; flex-direction: column; background: linear-gradient(180deg, color-mix(in srgb, var(--bg-tint) 96%, white 4%), var(--bg-tint)); border: 1px solid var(--paper-line); border-radius: 14px; padding: 0.95rem 1rem 1rem; box-shadow: 0 3px 12px color-mix(in srgb, var(--shadow) 70%, transparent); text-decoration: none; color: inherit; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; height: 100%; min-height: 11rem; }
+  .music-card { display: flex; flex-direction: column; background: linear-gradient(180deg, color-mix(in srgb, var(--bg-tint) 96%, white 4%), var(--bg-tint)); border: 1px solid var(--paper-line); border-radius: 14px; padding: 0.95rem 1rem 1rem; box-shadow: 0 3px 12px color-mix(in srgb, var(--shadow) 70%, transparent); text-decoration: none; color: inherit; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; height: 100%; min-height: 11rem; }
   .music-card:hover { transform: translateY(-2px); box-shadow: 0 9px 24px var(--shadow); border-color: var(--accent-soft); }
   .card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; min-height: 1.8rem; }
   .card-status { min-width: 2.5rem; }
