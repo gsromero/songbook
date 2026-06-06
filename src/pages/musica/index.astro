@@ -701,9 +701,26 @@ import Base from '../../layouts/Base.astro';
   .meta-sep { color: var(--ink-soft); opacity: 0.5; }
   .tom-original { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-soft); }
   .musica-actions-row { display: flex; align-items: center; gap: 0.75rem; }
-  .btn-heart { background: none; border: none; font-size: 1.4rem; cursor: pointer; padding: 0; opacity: 0.5; transition: opacity 0.15s, transform 0.15s; }
+  .musica-actions-row .btn,
+  .cifra-controls .btn,
+  .transpose-display,
+  .btn-heart {
+    box-sizing: border-box;
+    height: 1.85rem;
+    min-height: 1.85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .musica-actions-row .btn,
+  .cifra-controls .btn {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .btn-heart { width: 1.85rem; background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: 0; opacity: 0.5; transition: opacity 0.15s, transform 0.15s; }
   .btn-heart:hover { opacity: 1; transform: scale(1.2); }
-  .btn-small { font-size: 0.78rem; padding: 0.28rem 0.62rem; }
+  .btn-small { font-size: 0.78rem; padding-left: 0.62rem; padding-right: 0.62rem; }
   .btn-danger { color: #b43b2f; border-color: color-mix(in srgb, #b43b2f 40%, var(--paper-line)); background: color-mix(in srgb, #b43b2f 7%, transparent); }
   .btn-danger:hover { color: var(--bg); background: #b43b2f; border-color: #b43b2f; }
   .adicionado-por { font-size: 0.75rem; font-style: italic; color: var(--ink-soft); opacity: 0.6; }
@@ -721,7 +738,7 @@ import Base from '../../layouts/Base.astro';
   .yt-embed { width: 100%; height: 100%; border: none; }
 
   .cifra-controls { display: flex; gap: 1.5rem; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.25rem; }
-  .cifra-controls .btn-row { gap: 0.3rem; }
+  .cifra-controls .btn-row { gap: 0.3rem; align-items: center; }
   .transpose-display {
     font-family: var(--font-mono);
     font-size: 0.9rem;
@@ -729,13 +746,13 @@ import Base from '../../layouts/Base.astro';
     color: var(--accent);
     min-width: 2.4rem;
     text-align: center;
-    padding: 0.35rem 0.65rem;
+    padding: 0 0.65rem;
     background: color-mix(in srgb, var(--accent) 8%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
     border-radius: 3px;
     line-height: 1;
   }
-  .btn-salvar-tom { font-size: 0.8rem; padding: 0.28rem 0.6rem; color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  .btn-salvar-tom { font-size: 0.8rem; padding-left: 0.7rem; padding-right: 0.7rem; color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
   .btn-salvar-tom:hover { background: var(--accent); color: var(--bg); }
   .tom-saved { font-size: 0.75rem; color: var(--accent); font-style: italic; padding: 0 0.2rem; }
 
