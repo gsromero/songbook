@@ -1,0 +1,14 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "songbook",
+  "pages_build_output_dir": "dist",
+  "compatibility_date": "2026-06-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "songbook-db",
+      "database_id": "3a2ecf68-9596-4886-8326-81f8f43cd3f4"
+    }
+  ]
+}

@@ -22,6 +22,8 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
+    "hono": "^4.12.23",
+    "jose": "^6.2.3",
     "svguitar": "^2.5.1",
     "tailwindcss": "^4.3.0"
   },
@@ -33,6 +35,7 @@
     ]
   },
   "devDependencies": {
-    "linkedom": "^0.18.12"
+    "linkedom": "^0.18.12",
+    "wrangler": "^4.98.0"
   }
 }
