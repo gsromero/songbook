@@ -3,60 +3,64 @@ import Base from '../layouts/Base.astro';
 ---
 
 <Base title="Repertório" full={true}>
-  <!-- Recentes -->
-  <section id="recentes-section" style="display:none; margin-bottom:1.5rem;">
-    <h2 class="section-label">Tocadas recentemente</h2>
-    <div id="recentes-grid" class="recentes-grid"></div>
-  </section>
+  <div class="repertorio-shell">
+    <!-- Recentes -->
+    <section id="recentes-section" class="recentes-section" style="display:none;">
+      <h2 class="section-label">Tocadas recentemente</h2>
+      <div id="recentes-grid" class="recentes-grid"></div>
+    </section>
 
-  <!-- Cabeçalho -->
-  <div class="page-head">
-    <h1 class="page-title">Repertório</h1>
-    <p class="page-sub"><span id="songs-count">—</span></p>
-  </div>
+    <!-- Cabeçalho -->
+    <div class="page-head">
+      <h1 class="page-title">Repertório</h1>
+      <p class="page-sub"><span id="songs-count">—</span></p>
+    </div>
 
-  <!-- Filtros -->
-  <div class="controls filtros" id="filtros">
-    <div class="ctrl-group">
-      <span class="ctrl-label">Busca</span>
-      <div class="busca-wrap">
-        <input id="filtro-busca" type="search" placeholder="Título, artista ou acorde: Bm…" class="input filtro-busca-input" />
-        <button id="btn-buscar-cifraclub-inline" class="btn btn-cc-inline" type="button" style="display:none;">🔍 CifraClub</button>
+    <!-- Filtros -->
+    <div class="controls filtros" id="filtros">
+      <div class="ctrl-group ctrl-search">
+        <span class="ctrl-label">Busca</span>
+        <div class="busca-wrap">
+          <input id="filtro-busca" type="search" placeholder="Título, artista ou acorde: Bm…" class="input filtro-busca-input" />
+          <button id="btn-buscar-cifraclub-inline" class="btn btn-cc-inline" type="button" style="display:none;">🔍 CifraClub</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group ctrl-tags">
+        <span class="ctrl-label">Tags</span>
+        <div id="tags-container" class="btn-row"></div>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">Artista</span>
+        <select id="filtro-artista" class="input"><option value="">Todos</option></select>
+      </div>
+
+      <div class="ctrl-group">
+        <span class="ctrl-label">Ordenar</span>
+        <div class="btn-row">
+          <button class="btn filtro-ordem" data-ordem="recentes" aria-pressed="true" type="button">Recentes</button>
+          <button class="btn filtro-ordem" data-ordem="az" aria-pressed="false" type="button">A–Z</button>
+          <button class="btn filtro-ordem" data-ordem="artista" aria-pressed="false" type="button">Artista</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group ctrl-actions">
+        <button id="btn-colar-cifra-inline" class="btn btn-accent" type="button">+ Colar cifra</button>
+        <button id="filtro-favoritos" class="btn" data-ativo="false" type="button">❤️ Favoritos</button>
+        <button id="filtro-limpar" class="btn btn-ghost" type="button">Limpar</button>
+        <span id="filtro-count" class="ctrl-label filtro-count"></span>
       </div>
     </div>
 
-    <div class="ctrl-group">
-      <span class="ctrl-label">Tags</span>
-      <div id="tags-container" class="btn-row"></div>
+    <!-- Grid de músicas -->
+    <div id="card-grid" class="card-grid"></div>
+
+    <!-- Mensagem "sem resultado" -->
+    <div id="cifraclub-banner" style="display:none;" class="cifraclub-banner">
+      <p>Nenhuma música encontrada no catálogo.</p>
+      <button id="btn-colar-cifra-banner" class="btn btn-accent" type="button">Colar cifra manualmente</button>
     </div>
-
-    <div class="ctrl-group">
-      <span class="ctrl-label">Artista</span>
-      <select id="filtro-artista" class="input"><option value="">Todos</option></select>
-    </div>
-
-    <div class="ctrl-group">
-      <span class="ctrl-label">Ordenar</span>
-      <div class="btn-row">
-        <button class="btn filtro-ordem" data-ordem="recentes" aria-pressed="true" type="button">Recentes</button>
-        <button class="btn filtro-ordem" data-ordem="az" aria-pressed="false" type="button">A–Z</button>
-        <button class="btn filtro-ordem" data-ordem="artista" aria-pressed="false" type="button">Artista</button>
-      </div>
-    </div>
-
-    <div class="ctrl-group">
-      <button id="filtro-favoritos" class="btn" data-ativo="false" type="button">❤️ Favoritos</button>
-      <button id="filtro-limpar" class="btn btn-ghost" type="button">Limpar</button>
-      <span id="filtro-count" class="ctrl-label" style="margin-left:auto;font-style:italic;"></span>
-    </div>
-  </div>
-
-  <!-- Grid de músicas -->
-  <div id="card-grid" class="card-grid"></div>
-
-  <!-- Mensagem "sem resultado" -->
-  <div id="cifraclub-banner" style="display:none;" class="cifraclub-banner">
-    <p>Nenhuma música encontrada no catálogo.</p>
   </div>
 
   <!-- Modal: resultados CifraClub -->
@@ -72,12 +76,23 @@ import Base from '../layouts/Base.astro';
 
   <!-- Modal: confirmar adição -->
   <div id="modal-confirmar" class="modal-overlay" style="display:none;">
-    <div class="modal-box">
+    <div class="modal-box modal-box-wide">
       <div class="modal-header">
         <span class="modal-title">Adicionar música</span>
         <button class="modal-close" id="btn-fechar-confirmar">✕</button>
       </div>
       <form id="form-adicionar" class="form-adicionar">
+        <div class="manual-help">
+          <strong>Importação manual</strong>
+          <span>Busque no CifraClub, abra a música no site, copie a cifra completa e cole aqui.</span>
+          <span>Se preencher a URL, título e artista são sugeridos automaticamente.</span>
+          <span id="add-fetch-warning" class="manual-warning" style="display:none;"></span>
+        </div>
+        <div class="field">
+          <label>URL do CifraClub <span class="hint">(opcional)</span></label>
+          <input id="add-cifraclub-url" type="url" placeholder="https://www.cifraclub.com.br/artista/musica/" />
+          <a id="add-open-cifraclub" class="open-cifraclub" href="#" target="_blank" rel="noopener noreferrer" style="display:none;">Abrir no CifraClub ↗</a>
+        </div>
         <div class="field">
           <label>Título</label>
           <input id="add-titulo" type="text" required />
@@ -104,10 +119,14 @@ import Base from '../layouts/Base.astro';
           <label>Link YouTube <span class="hint">(opcional)</span></label>
           <input id="add-youtube" type="text" placeholder="https://youtube.com/watch?v=..." />
         </div>
+        <div class="field">
+          <label>Cifra <span class="hint">(cole acordes e letra)</span></label>
+          <textarea id="add-cifra" required rows="14" spellcheck="false" placeholder="Cole aqui a cifra completa copiada do CifraClub…"></textarea>
+        </div>
         <p id="add-error" class="login-error" style="display:none;"></p>
         <div class="modal-actions">
           <button type="button" id="btn-cancelar-add" class="btn btn-ghost">Cancelar</button>
-          <button type="submit" id="btn-add-submit" class="btn btn-accent">Adicionar</button>
+          <button type="submit" id="btn-add-submit" class="btn btn-accent">Salvar</button>
         </div>
       </form>
     </div>
@@ -200,14 +219,16 @@ import Base from '../layouts/Base.astro';
       <div class="music-card-wrap" data-slug="${m.slug}" data-titulo="${m.titulo.toLowerCase()}" data-artista="${m.artista.toLowerCase()}" data-tags="${(m.tags || []).join(',')}">
         <a href="/musica/${m.slug}" class="music-card">
           <div class="card-top">
-            <span class="card-heart" data-slug="${m.slug}" data-favorito="${isFav}">${isFav ? '❤️' : '♡'}</span>
-            ${novoBadge}
+            <span class="card-status">${novoBadge}</span>
+            <span class="card-heart" data-slug="${m.slug}" data-favorito="${isFav}" role="button" aria-label="Favoritar ${m.titulo}" title="Favoritar">${isFav ? '❤️' : '♡'}</span>
           </div>
-          <h2 class="card-title">${m.titulo}</h2>
-          <p class="card-artist"><a class="artist-link" data-artista="${m.artista}" href="/?artista=${encodeURIComponent(m.artista)}">${m.artista}</a></p>
-          <div class="card-foot">
+          <div class="card-main">
+            <h2 class="card-title">${m.titulo}</h2>
+            <p class="card-artist"><a class="artist-link" data-artista="${m.artista}" href="/?artista=${encodeURIComponent(m.artista)}">${m.artista}</a></p>
+          </div>
+          <div class="card-meta">
             ${m.tom ? `<span class="card-tom">${m.tom}</span>` : ''}
-            ${tags}
+            ${tags ? `<span class="card-tags">${tags}</span>` : ''}
           </div>
         </a>
       </div>
@@ -340,7 +361,7 @@ import Base from '../layouts/Base.astro';
     const q = filtroBusca.trim();
     if (!q) return;
     const btn = document.getElementById('btn-buscar-cifraclub-inline') as HTMLButtonElement;
-    if (btn) { btn.disabled = true; btn.textContent = 'Buscando…'; }
+    if (btn) { btn.disabled = true; btn.textContent = 'Aguarde...'; }
 
     try {
       const res = await fetch(`/api/cifraclub/search?q=${encodeURIComponent(q)}`);
@@ -376,7 +397,7 @@ import Base from '../layouts/Base.astro';
     const loadMsg = document.createElement('div');
     loadMsg.id = 'loading-msg';
     loadMsg.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg-tint);border:1px solid var(--paper-line);padding:1.5rem 2rem;border-radius:8px;z-index:999;font-style:italic;color:var(--ink-soft);';
-    loadMsg.textContent = 'Buscando cifra e sugerindo tags…';
+    loadMsg.textContent = 'Buscando cifra e sugerindo tags...';
     document.body.appendChild(loadMsg);
 
     try {
@@ -388,37 +409,115 @@ import Base from '../layouts/Base.astro';
       preencherModalAdicionar(data);
       document.getElementById('modal-confirmar')!.style.display = '';
     } catch (err: any) {
-      alert('Erro ao buscar cifra: ' + err.message);
+      abrirModalManual(url, `Não consegui baixar a cifra automaticamente (${err.message}). Cole a cifra manualmente para salvar.`);
     } finally {
       loadMsg.remove();
     }
   }
 
+  function tituloDeSlug(slug: string): string {
+    return decodeURIComponent(slug)
+      .split('-')
+      .filter(Boolean)
+      .map(parte => parte.charAt(0).toUpperCase() + parte.slice(1))
+      .join(' ');
+  }
+
+  function dadosDaUrlCifraClub(url: string): any {
+    try {
+      const parsed = new URL(url);
+      if (!parsed.hostname.endsWith('cifraclub.com.br')) return {};
+      const partes = parsed.pathname.split('/').filter(Boolean);
+      if (partes.length < 2) return {};
+      return {
+        artista: tituloDeSlug(partes[0] || ''),
+        titulo: tituloDeSlug(partes[1] || ''),
+        url: parsed.toString(),
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  function sincronizarLinkCifraClub() {
+    const input = document.getElementById('add-cifraclub-url') as HTMLInputElement;
+    const link = document.getElementById('add-open-cifraclub') as HTMLAnchorElement;
+    const dados = dadosDaUrlCifraClub(input.value.trim());
+    if (dados.url) {
+      link.href = dados.url;
+      link.style.display = '';
+    } else {
+      link.style.display = 'none';
+      link.removeAttribute('href');
+    }
+    return dados;
+  }
+
+  function abrirModalManual(url = '', mensagem = '') {
+    cifraParaAdicionar = null;
+    preencherModalAdicionar(dadosDaUrlCifraClub(url));
+    const warning = document.getElementById('add-fetch-warning')!;
+    warning.textContent = mensagem;
+    warning.style.display = mensagem ? '' : 'none';
+    document.getElementById('modal-confirmar')!.style.display = '';
+    (document.getElementById('add-cifra') as HTMLTextAreaElement).focus();
+  }
+
   function preencherModalAdicionar(data: any) {
+    (document.getElementById('form-adicionar') as HTMLFormElement).reset();
     (document.getElementById('add-titulo') as HTMLInputElement).value = data.titulo || '';
     (document.getElementById('add-artista') as HTMLInputElement).value = data.artista || '';
     (document.getElementById('add-tom-original') as HTMLInputElement).value = data.tomOriginal || '';
     (document.getElementById('add-tags') as HTMLInputElement).value = (data.tags_sugeridas || []).join(', ');
     (document.getElementById('add-youtube') as HTMLInputElement).value = '';
+    (document.getElementById('add-cifraclub-url') as HTMLInputElement).value = data.url || '';
+    (document.getElementById('add-cifra') as HTMLTextAreaElement).value = data.cifra || '';
+    (document.getElementById('add-tom') as HTMLInputElement).value = data.tom || '';
+    const warning = document.getElementById('add-fetch-warning')!;
+    warning.textContent = '';
+    warning.style.display = 'none';
+    const errorEl = document.getElementById('add-error')!;
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
+    const btn = document.getElementById('btn-add-submit') as HTMLButtonElement;
+    btn.disabled = false;
+    btn.textContent = 'Salvar';
+    sincronizarLinkCifraClub();
   }
+
+  document.getElementById('btn-colar-cifra-inline')?.addEventListener('click', () => abrirModalManual());
+  document.getElementById('btn-colar-cifra-banner')?.addEventListener('click', () => abrirModalManual());
+
+  document.getElementById('add-cifraclub-url')?.addEventListener('input', () => {
+    const dados = sincronizarLinkCifraClub();
+    if (dados.titulo && !(document.getElementById('add-titulo') as HTMLInputElement).value) {
+      (document.getElementById('add-titulo') as HTMLInputElement).value = dados.titulo;
+    }
+    if (dados.artista && !(document.getElementById('add-artista') as HTMLInputElement).value) {
+      (document.getElementById('add-artista') as HTMLInputElement).value = dados.artista;
+    }
+  });
 
   document.getElementById('form-adicionar')?.addEventListener('submit', async e => {
     e.preventDefault();
     const btn = document.getElementById('btn-add-submit') as HTMLButtonElement;
     btn.disabled = true;
-    btn.textContent = 'Adicionando…';
+    btn.textContent = 'Aguarde...';
     const errorEl = document.getElementById('add-error') as HTMLElement;
     errorEl.style.display = 'none';
 
     try {
+      const cifraManual = (document.getElementById('add-cifra') as HTMLTextAreaElement).value.trim();
+      const linkCifraClub = (document.getElementById('add-cifraclub-url') as HTMLInputElement).value.trim();
+      if (!cifraManual) throw new Error('Cole a cifra antes de salvar a música.');
       const payload = {
         titulo: (document.getElementById('add-titulo') as HTMLInputElement).value,
         artista: (document.getElementById('add-artista') as HTMLInputElement).value,
         tom: (document.getElementById('add-tom') as HTMLInputElement).value,
         tom_original: (document.getElementById('add-tom-original') as HTMLInputElement).value,
         tags: (document.getElementById('add-tags') as HTMLInputElement).value.split(',').map(t => t.trim()).filter(Boolean),
-        cifra: cifraParaAdicionar?.cifra || '',
-        link_cifraclub: cifraParaAdicionar?.url || '',
+        cifra: cifraManual,
+        link_cifraclub: linkCifraClub,
         link_youtube: (document.getElementById('add-youtube') as HTMLInputElement).value,
       };
 
@@ -427,12 +526,14 @@ import Base from '../layouts/Base.astro';
       if (!res.ok) throw new Error(data.error);
 
       document.getElementById('modal-confirmar')!.style.display = 'none';
-      window.location.href = `/musica/${data.slug}`;
+      (document.getElementById('form-adicionar') as HTMLFormElement).reset();
+      cifraParaAdicionar = null;
+      await carregarMusicas();
     } catch (err: any) {
       errorEl.textContent = err.message;
       errorEl.style.display = '';
       btn.disabled = false;
-      btn.textContent = 'Adicionar';
+      btn.textContent = 'Salvar';
     }
   });
 
@@ -447,40 +548,50 @@ import Base from '../layouts/Base.astro';
   carregarRecentes();
 </script>
 
-<style>
-  .page-head { margin-bottom: 1.5rem; }
+<style is:global>
+  .repertorio-shell { width: min(100%, 92rem); margin: 0 auto; }
+  .recentes-section { margin-bottom: 2rem; }
+  .page-head { margin-bottom: 1.75rem; }
   .page-title { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.8rem, 4vw, 2.6rem); color: var(--ink); letter-spacing: -0.01em; }
   .page-sub { font-style: italic; color: var(--ink-soft); font-size: 0.95rem; }
-  .section-label { font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1rem; color: var(--ink-soft); margin-bottom: 0.75rem; }
+  .section-label { font-family: var(--font-display); font-style: italic; font-weight: 500; font-size: 1rem; color: var(--ink-soft); margin-bottom: 0.85rem; }
 
-  .recentes-grid { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-  .recente-card { display: flex; flex-direction: column; padding: 0.5rem 0.9rem; background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 5px; text-decoration: none; color: inherit; transition: border-color 0.15s; min-width: 8rem; }
-  .recente-card:hover { border-color: var(--accent-soft); }
-  .recente-titulo { font-family: var(--font-display); font-size: 0.9rem; color: var(--ink); }
+  .recentes-grid { display: flex; gap: 0.65rem; flex-wrap: wrap; }
+  .recente-card { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.55rem 0.9rem; background: color-mix(in srgb, var(--bg-tint) 92%, var(--accent) 8%); border: 1px solid var(--paper-line); border-radius: 999px; text-decoration: none; color: inherit; transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s; min-width: 9rem; box-shadow: 0 2px 8px color-mix(in srgb, var(--shadow) 70%, transparent); }
+  .recente-card:hover { border-color: var(--accent-soft); transform: translateY(-1px); box-shadow: 0 5px 16px var(--shadow); }
+  .recente-titulo { font-family: var(--font-display); font-size: 0.92rem; color: var(--ink); line-height: 1.1; }
   .recente-artista { font-style: italic; font-size: 0.75rem; color: var(--ink-soft); }
 
-  .filtros { margin-bottom: 1.5rem; }
-  .busca-wrap { display: flex; align-items: center; gap: 0.5rem; }
-  .filtro-busca-input { width: 20rem; }
+  .filtros { position: relative; top: auto; margin-bottom: 1.75rem; display: flex; align-items: flex-end; gap: 0.85rem 1rem; flex-wrap: wrap; padding: 0.9rem 1rem; background: color-mix(in srgb, var(--bg-tint) 72%, transparent); border: 1px solid color-mix(in srgb, var(--paper-line) 80%, transparent); border-radius: 12px; }
+  .filtros .ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; min-width: max-content; }
+  .ctrl-search { flex: 1 1 22rem; }
+  .ctrl-tags { flex: 2 1 28rem; }
+  .filtros .ctrl-actions { flex: 1 1 auto; flex-direction: row; align-items: center; align-self: end; justify-content: flex-end; flex-wrap: wrap; }
+  .busca-wrap { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .filtro-busca-input { width: min(24rem, 100%); }
   .btn-cc-inline { white-space: nowrap; }
-  .btn-row { display: flex; gap: 2px; flex-wrap: wrap; }
+  .btn-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
   .tag-count { font-size: 0.7em; opacity: 0.6; }
+  .filtro-count { margin-left: auto; font-style: italic; white-space: nowrap; }
 
-  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: 1rem; }
-  .music-card { display: flex; flex-direction: column; background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 6px; padding: 0.9rem 1rem 1rem; box-shadow: 0 2px 8px var(--shadow); text-decoration: none; color: inherit; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; height: 100%; }
-  .music-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px var(--shadow); border-color: var(--accent-soft); }
-  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
-  .card-heart { font-size: 1.1rem; cursor: pointer; padding: 0.1rem 0.3rem; border-radius: 3px; opacity: 0.5; transition: opacity 0.15s; line-height: 1; }
-  .card-heart:hover, .card-heart[data-favorito="true"] { opacity: 1; }
-  .card-novo { font-family: var(--font-mono); font-size: 0.65rem; background: var(--accent); color: var(--bg); padding: 0.1rem 0.4rem; border-radius: 3px; }
-  .card-title { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; line-height: 1.2; color: var(--ink); margin-bottom: 0.15rem; }
-  .card-artist { font-style: italic; font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 0.7rem; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 1rem; align-items: stretch; }
+  .music-card { display: flex; flex-direction: column; background: linear-gradient(180deg, color-mix(in srgb, var(--bg-tint) 96%, white 4%), var(--bg-tint)); border: 1px solid var(--paper-line); border-radius: 14px; padding: 0.95rem 1rem 1rem; box-shadow: 0 3px 12px color-mix(in srgb, var(--shadow) 70%, transparent); text-decoration: none; color: inherit; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; height: 100%; min-height: 11rem; }
+  .music-card:hover { transform: translateY(-2px); box-shadow: 0 9px 24px var(--shadow); border-color: var(--accent-soft); }
+  .card-top { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; min-height: 1.8rem; }
+  .card-status { min-width: 2.5rem; }
+  .card-heart { display: inline-flex; align-items: center; justify-content: center; width: 1.8rem; height: 1.8rem; font-size: 1.05rem; cursor: pointer; border: 1px solid var(--paper-line); background: color-mix(in srgb, var(--bg) 70%, transparent); border-radius: 999px; opacity: 0.72; transition: opacity 0.15s, border-color 0.15s, background 0.15s; line-height: 1; }
+  .card-heart:hover, .card-heart[data-favorito="true"] { opacity: 1; border-color: color-mix(in srgb, #e74c3c 50%, var(--paper-line)); background: color-mix(in srgb, #e74c3c 9%, transparent); }
+  .card-novo { display: inline-flex; font-family: var(--font-mono); font-size: 0.64rem; letter-spacing: 0.04em; text-transform: uppercase; background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--paper-line)); padding: 0.16rem 0.48rem; border-radius: 999px; }
+  .card-main { margin-bottom: 0.8rem; }
+  .card-title { font-family: var(--font-display); font-weight: 500; font-size: 1.2rem; line-height: 1.18; color: var(--ink); margin-bottom: 0.2rem; }
+  .card-artist { font-style: italic; font-size: 0.88rem; color: var(--ink-soft); margin-bottom: 0; }
   .artist-link { color: inherit; text-decoration: none; }
   .artist-link:hover { color: var(--accent); }
-  .card-foot { display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center; margin-top: auto; }
-  .card-tom { font-family: var(--font-mono); font-weight: 600; font-size: 0.75rem; color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); padding: 0.05rem 0.4rem; border-radius: 3px; }
-  .card-tag { font-family: var(--font-serif); font-style: italic; font-size: 0.75rem; color: var(--ink-soft); opacity: 0.7; text-decoration: none; }
-  .card-tag:hover { opacity: 1; color: var(--accent); }
+  .card-meta { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; margin-top: auto; }
+  .card-tom { display: inline-flex; align-items: center; font-family: var(--font-mono); font-weight: 700; font-size: 0.76rem; color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--paper-line)); padding: 0.12rem 0.48rem; border-radius: 999px; }
+  .card-tags { display: inline-flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
+  .card-tag { display: inline-flex; align-items: center; font-family: var(--font-serif); font-style: italic; font-size: 0.75rem; color: var(--ink-soft); text-decoration: none; padding: 0.12rem 0.48rem; border: 1px solid var(--paper-line); border-radius: 999px; background: color-mix(in srgb, var(--bg) 54%, transparent); }
+  .card-tag:hover { color: var(--accent); border-color: var(--accent-soft); }
 
   #filtro-favoritos[data-ativo="true"] { background: color-mix(in srgb, #e74c3c 12%, transparent); border-color: #e74c3c; color: #c0392b; }
   .btn-ghost { border-color: transparent; background: transparent; color: var(--ink-soft); }
@@ -488,11 +599,12 @@ import Base from '../layouts/Base.astro';
   .btn-accent { background: var(--accent); color: var(--bg); border-color: var(--accent); }
   .btn-accent:hover { opacity: 0.85; }
 
-  .cifraclub-banner { text-align: center; padding: 2rem; border: 1px dashed var(--paper-line); border-radius: 6px; color: var(--ink-soft); font-style: italic; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+  .cifraclub-banner { text-align: center; padding: 2rem; border: 1px dashed var(--paper-line); border-radius: 12px; color: var(--ink-soft); font-style: italic; display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 
   /* Modais */
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; }
-  .modal-box { background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 8px; width: 100%; max-width: 28rem; max-height: 85vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .modal-box { background: var(--bg-tint); border: 1px solid var(--paper-line); border-radius: 12px; width: min(100% - 1.5rem, 34rem); max-height: 88vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.2); }
+  .modal-box-wide { max-width: 42rem; }
   .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid var(--paper-line); }
   .modal-title { font-family: var(--font-display); font-weight: 500; font-size: 1.1rem; }
   .modal-close { background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--ink-soft); padding: 0.2rem 0.4rem; }
@@ -504,15 +616,33 @@ import Base from '../layouts/Base.astro';
   .empty-msg { padding: 1rem; text-align: center; color: var(--ink-soft); font-style: italic; }
 
   .form-adicionar { display: flex; flex-direction: column; gap: 1rem; padding: 1.25rem; }
+  .manual-help { display: flex; flex-direction: column; gap: 0.2rem; margin: 0; padding: 0.8rem 0.9rem; color: var(--ink-soft); background: color-mix(in srgb, var(--accent) 7%, var(--bg)); border: 1px solid var(--paper-line); border-radius: 7px; font-size: 0.85rem; line-height: 1.4; }
+  .manual-help strong { color: var(--ink); font-family: var(--font-display); font-size: 1rem; }
+  .manual-warning { color: var(--accent); font-style: italic; margin-top: 0.25rem; }
   .field { display: flex; flex-direction: column; gap: 0.3rem; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
   .field label { font-size: 0.85rem; color: var(--ink-soft); font-style: italic; }
   .hint { font-size: 0.75em; opacity: 0.7; }
-  .field input { padding: 0.5rem 0.7rem; border: 1px solid var(--paper-line); border-radius: 4px; background: var(--bg); color: var(--ink); font-family: var(--font-serif); font-size: 0.9rem; outline: none; }
-  .field input:focus { border-color: var(--accent); }
+  .field input, .field textarea { padding: 0.55rem 0.7rem; border: 1px solid var(--paper-line); border-radius: 6px; background: var(--bg); color: var(--ink); font-family: var(--font-serif); font-size: 0.9rem; outline: none; }
+  .field textarea { min-height: 14rem; resize: vertical; line-height: 1.45; font-family: var(--font-mono); }
+  .field input:focus, .field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 12%, transparent); }
+  .open-cifraclub { align-self: flex-start; color: var(--accent); font-size: 0.8rem; font-style: italic; }
   .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
   .login-error { color: #c0392b; font-size: 0.85rem; font-style: italic; margin: 0; }
 
   .music-card-wrap { display: contents; }
-  @media (max-width: 700px) { .filtro-busca-input { width: 100%; } }
+  @media (max-width: 700px) {
+    .filtros { align-items: stretch; }
+    .filtros .ctrl-group, .filtros .ctrl-actions { width: 100%; min-width: 0; flex-basis: 100%; }
+    .filtros .ctrl-actions { justify-content: flex-start; }
+    .busca-wrap, .filtro-busca-input { width: 100%; }
+    .btn-cc-inline { width: 100%; }
+    .filtro-count { margin-left: 0; }
+    .card-grid { grid-template-columns: 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 430px) {
+    .recente-card { flex: 1 1 100%; border-radius: 10px; }
+  }
 </style>
