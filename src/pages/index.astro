@@ -18,38 +18,44 @@ import Base from '../layouts/Base.astro';
 
     <!-- Filtros -->
     <div class="controls filtros" id="filtros">
-      <div class="ctrl-group ctrl-search">
-        <span class="ctrl-label">Busca</span>
-        <div class="busca-wrap">
-          <input id="filtro-busca" type="search" placeholder="Título, artista ou acorde: Bm…" class="input filtro-busca-input" />
-          <button id="btn-buscar-cifraclub-inline" class="btn btn-cc-inline" type="button" style="display:none;">🔍 CifraClub</button>
+      <div class="filter-panel filter-panel-primary">
+        <div class="ctrl-group ctrl-search">
+          <span class="ctrl-label">Busca</span>
+          <div class="busca-wrap">
+            <input id="filtro-busca" type="search" placeholder="Título, artista ou acorde" class="input filtro-busca-input" />
+            <button id="btn-buscar-cifraclub-inline" class="btn btn-cc-inline" type="button" style="display:none;">🔍 CifraClub</button>
+          </div>
+        </div>
+
+        <div class="ctrl-group ctrl-actions">
+          <button id="btn-colar-cifra-inline" class="btn btn-accent" type="button">+ Colar cifra</button>
+          <button id="filtro-favoritos" class="btn" data-ativo="false" type="button">💖 Favoritos</button>
+          <button id="filtro-limpar" class="btn btn-ghost" type="button">Limpar</button>
+          <span id="filtro-count" class="ctrl-label filtro-count"></span>
         </div>
       </div>
 
-      <div class="ctrl-group ctrl-tags">
-        <span class="ctrl-label">Tags</span>
-        <div id="tags-container" class="btn-row"></div>
-      </div>
+      <div class="filter-panel filter-panel-tags">
+        <div class="ctrl-group ctrl-tags">
+          <span class="ctrl-label">Tags</span>
+          <div id="tags-container" class="btn-row"></div>
+        </div>
 
-      <div class="ctrl-group">
-        <span class="ctrl-label">Artista</span>
-        <select id="filtro-artista" class="input"><option value="">Todos</option></select>
-      </div>
-
-      <div class="ctrl-group">
-        <span class="ctrl-label">Ordenar</span>
-        <div class="btn-row">
-          <button class="btn filtro-ordem" data-ordem="recentes" aria-pressed="true" type="button">Recentes</button>
-          <button class="btn filtro-ordem" data-ordem="az" aria-pressed="false" type="button">A–Z</button>
-          <button class="btn filtro-ordem" data-ordem="artista" aria-pressed="false" type="button">Artista</button>
+        <div class="ctrl-group ctrl-artist">
+          <span class="ctrl-label">Artista</span>
+          <select id="filtro-artista" class="input"><option value="">Todos</option></select>
         </div>
       </div>
 
-      <div class="ctrl-group ctrl-actions">
-        <button id="btn-colar-cifra-inline" class="btn btn-accent" type="button">+ Colar cifra</button>
-        <button id="filtro-favoritos" class="btn" data-ativo="false" type="button">❤️ Favoritos</button>
-        <button id="filtro-limpar" class="btn btn-ghost" type="button">Limpar</button>
-        <span id="filtro-count" class="ctrl-label filtro-count"></span>
+      <div class="filter-panel filter-panel-order">
+        <div class="ctrl-group ctrl-order">
+          <span class="ctrl-label">Ordenar</span>
+          <div class="btn-row">
+            <button class="btn filtro-ordem" data-ordem="recentes" aria-pressed="true" type="button">Recentes</button>
+            <button class="btn filtro-ordem" data-ordem="az" aria-pressed="false" type="button">A–Z</button>
+            <button class="btn filtro-ordem" data-ordem="artista" aria-pressed="false" type="button">Artista</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -577,17 +583,23 @@ import Base from '../layouts/Base.astro';
   .recente-titulo { font-family: var(--font-display); font-size: 0.92rem; color: var(--ink); line-height: 1.1; }
   .recente-artista { font-style: italic; font-size: 0.75rem; color: var(--ink-soft); }
 
-  .filtros { position: relative; top: auto; margin-bottom: 1.75rem; display: flex; align-items: flex-end; gap: 0.85rem 1rem; flex-wrap: wrap; padding: 0.9rem 1rem; background: color-mix(in srgb, var(--bg-tint) 72%, transparent); border: 1px solid color-mix(in srgb, var(--paper-line) 80%, transparent); border-radius: 12px; }
-  .filtros .ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; min-width: max-content; }
-  .ctrl-search { flex: 1 1 22rem; }
-  .ctrl-tags { flex: 2 1 28rem; }
-  .filtros .ctrl-actions { flex: 1 1 auto; flex-direction: row; align-items: center; align-self: end; justify-content: flex-end; flex-wrap: wrap; }
-  .busca-wrap { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-  .filtro-busca-input { width: min(24rem, 100%); }
+  .filtros { position: relative; top: auto; margin-bottom: 1.75rem; display: grid; grid-template-columns: minmax(18rem, 1.2fr) minmax(20rem, 1.45fr) auto; align-items: end; gap: 1rem 1.35rem; padding: 1rem 1.05rem; background: color-mix(in srgb, var(--bg-tint) 72%, transparent); border: 1px solid color-mix(in srgb, var(--paper-line) 80%, transparent); border-radius: 12px; }
+  .filter-panel { display: flex; align-items: end; gap: 0.75rem; min-width: 0; }
+  .filter-panel-primary { flex-wrap: wrap; }
+  .filter-panel-tags { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(8rem, 10rem); align-items: end; gap: 0.9rem; }
+  .filter-panel-order { justify-content: end; }
+  .filtros .ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
+  .ctrl-search { flex: 1 1 18rem; }
+  .ctrl-actions { flex: 1 1 100%; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 0.45rem !important; flex-wrap: wrap; }
+  .ctrl-tags { min-width: 0; }
+  .ctrl-artist { min-width: 8rem; }
+  .ctrl-order { align-items: flex-start; }
+  .busca-wrap { display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; }
+  .filtro-busca-input { width: 100%; min-width: 12rem; }
   .btn-cc-inline { white-space: nowrap; }
   .btn-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
   .tag-count { font-size: 0.7em; opacity: 0.6; }
-  .filtro-count { margin-left: auto; font-style: italic; white-space: nowrap; }
+  .filtro-count { margin-left: 0.2rem; font-style: italic; white-space: nowrap; }
 
   .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr)); gap: 1rem; align-items: stretch; }
   .music-card { display: flex; flex-direction: column; background: linear-gradient(180deg, color-mix(in srgb, var(--bg-tint) 96%, white 4%), var(--bg-tint)); border: 1px solid var(--paper-line); border-radius: 14px; padding: 0.95rem 1rem 1rem; box-shadow: 0 3px 12px color-mix(in srgb, var(--shadow) 70%, transparent); text-decoration: none; color: inherit; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s; height: 100%; min-height: 11rem; }
@@ -647,8 +659,9 @@ import Base from '../layouts/Base.astro';
 
   .music-card-wrap { display: contents; }
   @media (max-width: 700px) {
-    .filtros { align-items: stretch; }
-    .filtros .ctrl-group, .filtros .ctrl-actions { width: 100%; min-width: 0; flex-basis: 100%; }
+    .filtros { display: flex; align-items: stretch; flex-direction: column; }
+    .filter-panel, .filter-panel-tags, .filter-panel-order { display: flex; align-items: stretch; flex-direction: column; gap: 0.75rem; }
+    .filtros .ctrl-group, .filtros .ctrl-actions { width: 100%; min-width: 0; flex-basis: auto; }
     .filtros .ctrl-actions { justify-content: flex-start; }
     .busca-wrap, .filtro-busca-input { width: 100%; }
     .btn-cc-inline { width: 100%; }
