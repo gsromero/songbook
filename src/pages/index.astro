@@ -18,43 +18,40 @@ import Base from '../layouts/Base.astro';
 
     <!-- Filtros -->
     <div class="controls filtros" id="filtros">
-      <div class="filter-panel filter-panel-primary">
-        <div class="ctrl-group ctrl-search">
-          <span class="ctrl-label">Busca</span>
-          <div class="busca-wrap">
-            <input id="filtro-busca" type="search" placeholder="Título, artista ou acorde" class="input filtro-busca-input" />
-            <button id="btn-buscar-cifraclub-inline" class="btn btn-cc-inline" type="button" style="display:none;">🔍 CifraClub</button>
-          </div>
+      <div class="ctrl-group ctrl-search">
+        <span class="ctrl-label">Busca</span>
+        <div class="busca-wrap">
+          <input id="filtro-busca" type="search" placeholder="Título, artista ou acorde" class="input filtro-busca-input" />
+          <button id="btn-buscar-cifraclub-inline" class="btn btn-cc-inline" type="button" style="display:none;">🔍 CifraClub</button>
         </div>
+      </div>
 
-        <div class="ctrl-group ctrl-actions">
+      <div class="ctrl-group ctrl-tags">
+        <span class="ctrl-label">Tags</span>
+        <div id="tags-container" class="btn-row"></div>
+      </div>
+
+      <div class="ctrl-group ctrl-artist">
+        <span class="ctrl-label">Artista</span>
+        <select id="filtro-artista" class="input"><option value="">Todos</option></select>
+      </div>
+
+      <div class="ctrl-group ctrl-order">
+        <span class="ctrl-label">Ordenar</span>
+        <div class="btn-row">
+          <button class="btn filtro-ordem" data-ordem="recentes" aria-pressed="true" type="button">Recentes</button>
+          <button class="btn filtro-ordem" data-ordem="az" aria-pressed="false" type="button">A–Z</button>
+          <button class="btn filtro-ordem" data-ordem="artista" aria-pressed="false" type="button">Artista</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group ctrl-actions">
+        <span class="ctrl-label">Ações</span>
+        <div class="btn-row">
           <button id="btn-colar-cifra-inline" class="btn btn-accent" type="button">+ Colar cifra</button>
           <button id="filtro-favoritos" class="btn" data-ativo="false" type="button">💖 Favoritos</button>
           <button id="filtro-limpar" class="btn btn-ghost" type="button">Limpar</button>
           <span id="filtro-count" class="ctrl-label filtro-count"></span>
-        </div>
-      </div>
-
-      <div class="filter-panel filter-panel-tags">
-        <div class="ctrl-group ctrl-tags">
-          <span class="ctrl-label">Tags</span>
-          <div id="tags-container" class="btn-row"></div>
-        </div>
-
-        <div class="ctrl-group ctrl-artist">
-          <span class="ctrl-label">Artista</span>
-          <select id="filtro-artista" class="input"><option value="">Todos</option></select>
-        </div>
-      </div>
-
-      <div class="filter-panel filter-panel-order">
-        <div class="ctrl-group ctrl-order">
-          <span class="ctrl-label">Ordenar</span>
-          <div class="btn-row">
-            <button class="btn filtro-ordem" data-ordem="recentes" aria-pressed="true" type="button">Recentes</button>
-            <button class="btn filtro-ordem" data-ordem="az" aria-pressed="false" type="button">A–Z</button>
-            <button class="btn filtro-ordem" data-ordem="artista" aria-pressed="false" type="button">Artista</button>
-          </div>
         </div>
       </div>
     </div>
@@ -583,21 +580,17 @@ import Base from '../layouts/Base.astro';
   .recente-titulo { font-family: var(--font-display); font-size: 0.92rem; color: var(--ink); line-height: 1.1; }
   .recente-artista { font-style: italic; font-size: 0.75rem; color: var(--ink-soft); }
 
-  .filtros { position: relative; top: auto; margin-bottom: 1.75rem; display: grid; grid-template-columns: minmax(18rem, 1.2fr) minmax(20rem, 1.45fr) auto; align-items: end; gap: 1rem 1.35rem; padding: 1rem 1.05rem; background: color-mix(in srgb, var(--bg-tint) 72%, transparent); border: 1px solid color-mix(in srgb, var(--paper-line) 80%, transparent); border-radius: 12px; }
-  .filter-panel { display: flex; align-items: end; gap: 0.75rem; min-width: 0; }
-  .filter-panel-primary { flex-wrap: wrap; }
-  .filter-panel-tags { display: grid; grid-template-columns: minmax(10rem, 1fr) minmax(8rem, 10rem); align-items: end; gap: 0.9rem; }
-  .filter-panel-order { justify-content: end; }
-  .filtros .ctrl-group { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; }
-  .ctrl-search { flex: 1 1 18rem; }
-  .ctrl-actions { flex: 1 1 100%; display: flex !important; flex-direction: row !important; align-items: center !important; gap: 0.45rem !important; flex-wrap: wrap; }
-  .ctrl-tags { min-width: 0; }
+  .filtros { position: relative; top: auto; margin-bottom: 1.75rem; display: grid; grid-template-columns: minmax(14rem, 1.2fr) minmax(15rem, 1fr) minmax(8rem, 0.6fr) auto auto; align-items: end; gap: 0.9rem 1.1rem; padding: 1rem 1.05rem; background: color-mix(in srgb, var(--bg-tint) 72%, transparent); border: 1px solid color-mix(in srgb, var(--paper-line) 80%, transparent); border-radius: 12px; }
+  .filtros .ctrl-group { display: flex; flex-direction: column; align-items: stretch; gap: 0.45rem; min-width: 0; }
+  .ctrl-search { min-width: 14rem; }
+  .ctrl-tags { min-width: 13rem; }
   .ctrl-artist { min-width: 8rem; }
-  .ctrl-order { align-items: flex-start; }
+  .ctrl-order, .ctrl-actions { justify-self: end; }
   .busca-wrap { display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap; }
   .filtro-busca-input { width: 100%; min-width: 12rem; }
   .btn-cc-inline { white-space: nowrap; }
-  .btn-row { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+  .btn-row { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .ctrl-order .btn-row, .ctrl-actions .btn-row { flex-wrap: nowrap; }
   .tag-count { font-size: 0.7em; opacity: 0.6; }
   .filtro-count { margin-left: 0.2rem; font-style: italic; white-space: nowrap; }
 
@@ -660,9 +653,9 @@ import Base from '../layouts/Base.astro';
   .music-card-wrap { display: contents; }
   @media (max-width: 700px) {
     .filtros { display: flex; align-items: stretch; flex-direction: column; }
-    .filter-panel, .filter-panel-tags, .filter-panel-order { display: flex; align-items: stretch; flex-direction: column; gap: 0.75rem; }
-    .filtros .ctrl-group, .filtros .ctrl-actions { width: 100%; min-width: 0; flex-basis: auto; }
-    .filtros .ctrl-actions { justify-content: flex-start; }
+    .filtros .ctrl-group { width: 100%; min-width: 0; }
+    .ctrl-order, .ctrl-actions { justify-self: stretch; }
+    .ctrl-order .btn-row, .ctrl-actions .btn-row { flex-wrap: wrap; }
     .busca-wrap, .filtro-busca-input { width: 100%; }
     .btn-cc-inline { width: 100%; }
     .filtro-count { margin-left: 0; }
