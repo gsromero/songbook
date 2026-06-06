@@ -55,7 +55,7 @@ import Base from '../../layouts/Base.astro';
       </div>
       <div class="ctrl-group">
         <span class="ctrl-label">Colunas</span>
-        <div class="btn-row" style="gap: 0.3rem;">
+        <div class="btn-row">
           {[1,2,3,4].map(n => <button class="btn col-btn" data-cols={n} aria-pressed={n === 1} type="button">{n}</button>)}
         </div>
       </div>
